@@ -9,6 +9,7 @@ import kotlinx.coroutines.*
 import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.ServiceInfo
+import androidx.lifecycle.MutableLiveData
 
 class ForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
@@ -16,8 +17,7 @@ class ForegroundService : Service() {
     private val NOTIFICATION_ID = 1
 
     companion object {
-        const val ACTION_VALUE_BROADCAST = "com.ssr.safitsafety.VALUE_BROADCAST"
-        const val EXTRA_VALUES = "values"
+        val hearRate = MutableLiveData<HearRate>()
     }
 
     override fun onCreate() {
@@ -41,7 +41,8 @@ class ForegroundService : Service() {
         ).apply {
             description = "Channel for Value Service"
         }
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
     }
 
@@ -68,7 +69,7 @@ class ForegroundService : Service() {
         serviceScope.launch {
             while (true) {
                 val randomValues = List(10) { kotlin.random.Random.nextFloat() * 100 }
-                broadcastValues(
+                hearRate.postValue(
                     HearRate(
                         randomValues[1].toInt(),
                         randomValues[2].toInt(),
@@ -84,15 +85,9 @@ class ForegroundService : Service() {
     }
 
     private fun generateNotification(message: String) {
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, createNotification(message))
-    }
-
-    private fun broadcastValues(data: HearRate) {
-        Intent(ACTION_VALUE_BROADCAST).apply {
-            putExtra(EXTRA_VALUES, data) // Send the HearRate object instead of string
-            sendBroadcast(this)
-        }
     }
 
     override fun onDestroy() {
