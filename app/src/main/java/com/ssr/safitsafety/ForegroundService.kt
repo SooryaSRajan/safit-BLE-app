@@ -25,7 +25,7 @@ class ForegroundService : Service() {
         createNotificationChannel()
         startForeground(
             NOTIFICATION_ID,
-            createNotification("Foreground service running to receive ECG values"),
+            createNotification("Emergency detection service running, please do not kill app. "),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
         )
         startBroadcasting()
