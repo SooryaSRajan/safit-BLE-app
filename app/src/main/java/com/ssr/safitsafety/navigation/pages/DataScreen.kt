@@ -77,11 +77,9 @@ fun DataScreen() {
                         DataStoreManager.clearMacAddress(context)
                     }
                 },
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.secondary
-            ) {
-                Icon(Icons.Filled.Close, "Disconnect.")
-            }
+                icon = { Icon(Icons.Filled.Close, "Disconnect.") },
+                text = { Text(text = "Disconnect") },
+            )
         }
     ) { paddingValues ->
         Column(
