@@ -90,11 +90,10 @@ class ForegroundService : Service() {
 
     private fun broadcastValues(data: HearRate) {
         Intent(ACTION_VALUE_BROADCAST).apply {
-            putExtra(EXTRA_VALUES, "Hey from service")
+            putExtra(EXTRA_VALUES, data) // Send the HearRate object instead of string
             sendBroadcast(this)
         }
     }
-
 
     override fun onDestroy() {
         super.onDestroy()

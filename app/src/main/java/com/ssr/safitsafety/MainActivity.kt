@@ -37,17 +37,27 @@ class MainActivity : ComponentActivity() {
         )
     )
 
-    fun <T : Serializable?> getSerializable(activity: Activity, name: String, clazz: Class<T>): T {
+    fun <T : Serializable?> getSerializable(name: String, clazz: Class<T>, intent: Intent): T {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-            activity.intent.getSerializableExtra(name, clazz)!!
+            intent.getSerializableExtra(name, clazz)!!
         else
-            activity.intent.getSerializableExtra(name) as T
+            intent.getSerializableExtra(name) as T
     }
 
     private val valueReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ForegroundService.ACTION_VALUE_BROADCAST) {
-                Toast.makeText(this@MainActivity, intent.getStringExtra(ForegroundService.EXTRA_VALUES), Toast.LENGTH_LONG).show()
+                try {
+                    heartRateRecord = getSerializable(
+                        ForegroundService.EXTRA_VALUES,
+                        HearRate::class.java,
+                        intent // Pass the broadcast intent
+                    )
+                    Toast.makeText(this@MainActivity, "Heart Rate: ${heartRateRecord.heartRate}", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
