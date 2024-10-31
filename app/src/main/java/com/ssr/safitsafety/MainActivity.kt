@@ -90,11 +90,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val isNavHostInitialized = mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sharedPref = this.getPreferences(Context.MODE_PRIVATE)
         savedMac.value = sharedPref.getString(PREF_KEY, "").toString()
-
 
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothManager.adapter?.let { adapter -> bluetoothLeScanner = adapter.bluetoothLeScanner }
@@ -163,7 +164,19 @@ class MainActivity : ComponentActivity() {
                     Intent(this, ForegroundService::class.java).also { intent ->
                         startForegroundService(intent)
                     }
-                    navController.navigate(route = Screen.Data.route)
+
+                }
+            }
+
+            if (isNavHostInitialized.value) {
+                if (arePermissionsAllowed.value) {
+                    if (savedMac.value.isNotEmpty()) {
+                        navController.navigate(route = Screen.Data.route)
+                    } else {
+                        navController.navigate(route = Screen.Scan.route)
+                    }
+                } else {
+                    navController.navigate(route = Screen.Permissions.route)
                 }
             }
 
@@ -172,68 +185,64 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    if (arePermissionsAllowed.value) {
-                        NavHost(
-                            navController = navController,
-                            startDestination = Screen.Scan.route
-                        ) {
-                            composable(route = Screen.Scan.route) {
-                                BluetoothListScreen(
-                                    navController = navController,
-                                    sharedPref = sharedPref,
-                                    loadDevices = {
-                                        stopScan()
-                                        startScan()
-                                    },
-                                    savedMac = savedMac,
-                                    bluetoothDevices = bluetoothDevices
-                                )
-                            }
-                            composable(
-                                route = Screen.Scan.route + "?text={text}",
-                                arguments = listOf(
-                                    navArgument("text") {
-                                        type = NavType.StringType
-                                        nullable = true
-                                    }
-                                )
-                            ) {
-                                DataScreen()
-                            }
+                    NavHost(
+                        navController = navController,
+                        startDestination = Screen.Permissions.route
+                    ) {
+                        isNavHostInitialized.value = true
+                        composable(route = Screen.Scan.route) {
+                            BluetoothListScreen(
+                                navController = navController,
+                                sharedPref = sharedPref,
+                                loadDevices = {
+                                    stopScan()
+                                    startScan()
+                                },
+                                savedMac = savedMac,
+                                bluetoothDevices = bluetoothDevices
+                            )
                         }
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                        composable(
+                            route = Screen.Data.route
                         ) {
-                            Card(
+                            DataScreen()
+                        }
+                        composable(route = Screen.Permissions.route) {
+                            Column(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
+                                    .fillMaxSize()
+                                    .padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(24.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
                                 ) {
-                                    Text(
-                                        text = "Permissions Needed",
-                                        style = MaterialTheme.typography.headlineMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                    Text(
-                                        text = "To proceed, please allow permissions in settings",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = Color.Gray,
-                                        modifier = Modifier.padding(bottom = 16.dp).align(Alignment.CenterHorizontally)
-                                    )
+                                    Column(
+                                        modifier = Modifier.padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            text = "Permissions Needed",
+                                            style = MaterialTheme.typography.headlineMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+                                        Text(
+                                            text = "To proceed, please allow permissions in settings",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = Color.Gray,
+                                            modifier = Modifier
+                                                .padding(bottom = 16.dp)
+                                                .align(Alignment.CenterHorizontally)
+                                        )
+                                    }
                                 }
                             }
-                        }
 
+                        }
                     }
                 }
             }
