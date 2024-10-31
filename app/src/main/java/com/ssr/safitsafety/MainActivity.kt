@@ -201,7 +201,6 @@ class MainActivity : ComponentActivity() {
                     Intent(this, ForegroundService::class.java).also { intent ->
                         startForegroundService(intent)
                     }
-
                 }
             }
 

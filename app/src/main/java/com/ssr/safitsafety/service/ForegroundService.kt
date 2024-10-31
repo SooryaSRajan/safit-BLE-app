@@ -37,7 +37,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -83,6 +82,13 @@ class ForegroundService : Service() {
         serviceScope.launch {
             DataStoreManager.getMacAddress(this@ForegroundService).collect { macAddress ->
                 if (!connect(macAddress)) {
+                    if (ActivityCompat.checkSelfPermission(
+                            this@ForegroundService,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        bluetoothGatt?.disconnect()
+                    }
                     createNotification("Failed to connect to device")
                     stopForegroundService()
                 }
@@ -123,25 +129,6 @@ class ForegroundService : Service() {
             .setAutoCancel(false)
             .setOngoing(true)
             .build()
-    }
-
-    private fun startBle() {
-        serviceScope.launch {
-            while (true) {
-                val randomValues = List(10) { kotlin.random.Random.nextFloat() * 100 }
-                hearRate.postValue(
-                    HearRate(
-                        randomValues[1].toInt(),
-                        randomValues[2].toInt(),
-                        randomValues[3],
-                        randomValues[4],
-                        randomValues[5],
-                        randomValues[6]
-                    )
-                )
-                delay(1000) // Broadcast every second
-            }
-        }
     }
 
     private fun connect(address: String?): Boolean {
