@@ -19,16 +19,21 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -154,7 +159,7 @@ class MainActivity : ComponentActivity() {
             }
 
             if (arePermissionsAllowed.value) {
-                if (savedMac.value.isEmpty()) {
+                if (savedMac.value.isNotEmpty()) {
                     Intent(this, ForegroundService::class.java).also { intent ->
                         startForegroundService(intent)
                     }
@@ -197,18 +202,38 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     } else {
-                        Text(
-                            text = "Please allow permissions",
-                            style = MaterialTheme.typography.headlineMedium,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                        Button(onClick = { checkPermissions() }) {
-                            Text(
-                                text = "Request permissions",
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "Permissions Needed",
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                    Text(
+                                        text = "To proceed, please allow permissions in settings",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color.Gray,
+                                        modifier = Modifier.padding(bottom = 16.dp).align(Alignment.CenterHorizontally)
+                                    )
+                                }
+                            }
                         }
+
                     }
                 }
             }
