@@ -188,6 +188,7 @@ class MainActivity : ComponentActivity() {
             if (arePermissionsAllowed.value) {
                 if (savedMac.value.isNotEmpty()) {
                     Intent(this, ForegroundService::class.java).also { intent ->
+                        intent.putExtra(PREF_KEY, savedMac.value)
                         startForegroundService(intent)
                     }
 

@@ -1,25 +1,55 @@
 package com.ssr.safitsafety.service
 
-import android.app.Service
-import android.content.Intent
-import android.os.IBinder
-import android.app.*
-import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.*
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.os.IBinder
+import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
 import androidx.lifecycle.MutableLiveData
-import com.ssr.safitsafety.data.HearRate
 import com.ssr.safitsafety.MainActivity
+import com.ssr.safitsafety.MainActivity.Companion.PREF_KEY
+import com.ssr.safitsafety.data.HearRate
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+private const val TAG = "BluetoothLeService"
 
 class ForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     private val CHANNEL_ID = "BLEBroadcastChannel"
     private val NOTIFICATION_ID = 1
+    var bluetoothGatt: BluetoothGatt? = null
+    private var bluetoothAdapter: BluetoothAdapter? = null
 
     companion object {
         val hearRate = MutableLiveData<HearRate>()
+    }
+
+    private fun initializeBluetoothAdapter(): Boolean {
+        bluetoothAdapter = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
+        if (bluetoothAdapter == null) {
+            Log.e(TAG, "Unable to obtain a BluetoothAdapter.")
+            return false
+        }
+        return true
     }
 
     override fun onCreate() {
@@ -30,7 +60,15 @@ class ForegroundService : Service() {
             createNotification("Emergency detection service running, please do not kill app. "),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
         )
-        startBroadcasting()
+        initializeBluetoothAdapter()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val deviceAddress = intent!!.getStringExtra(PREF_KEY)
+        if (!connect(deviceAddress)) {
+            createNotification("Failed to connect to device")
+        }
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -67,7 +105,7 @@ class ForegroundService : Service() {
             .build()
     }
 
-    private fun startBroadcasting() {
+    private fun startBle() {
         serviceScope.launch {
             while (true) {
                 val randomValues = List(10) { kotlin.random.Random.nextFloat() * 100 }
@@ -82,6 +120,44 @@ class ForegroundService : Service() {
                     )
                 )
                 delay(1000) // Broadcast every second
+            }
+        }
+    }
+
+    private fun connect(address: String?): Boolean {
+        if (address.isNullOrEmpty()) return false
+
+        bluetoothAdapter?.let { adapter ->
+            try {
+                val device = adapter.getRemoteDevice(address)
+                // connect to the GATT server on the device
+                if (ActivityCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.BLUETOOTH_CONNECT
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    return false
+                }
+                bluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
+                return true
+            } catch (exception: IllegalArgumentException) {
+                Log.w(TAG, "Device not found with provided address.  Unable to connect.")
+                return false
+            }
+        } ?: run {
+            Log.w(TAG, "BluetoothAdapter not initialized")
+            return false
+        }
+    }
+
+    private val bluetoothGattCallback = object : BluetoothGattCallback() {
+        override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                // successfully connected to the GATT Server
+                generateNotification("Successfully connected to device")
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                // disconnected from the GATT Server
+                generateNotification("Disconnected from device")
             }
         }
     }
