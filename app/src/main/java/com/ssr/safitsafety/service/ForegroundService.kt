@@ -9,6 +9,8 @@ import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
@@ -20,8 +22,10 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.lifecycleScope
 import com.ssr.safitsafety.MainActivity
 import com.ssr.safitsafety.MainActivity.Companion.PREF_KEY
+import com.ssr.safitsafety.data.DataStoreManager
 import com.ssr.safitsafety.data.HearRate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,9 +68,12 @@ class ForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val deviceAddress = intent!!.getStringExtra(PREF_KEY)
-        if (!connect(deviceAddress)) {
-            createNotification("Failed to connect to device")
+        serviceScope.launch {
+            DataStoreManager.getMacAddress(this@ForegroundService).collect { macAddress ->
+                if (!connect(macAddress)) {
+                    createNotification("Failed to connect to device")
+                }
+            }
         }
         return START_STICKY
     }
@@ -158,6 +165,15 @@ class ForegroundService : Service() {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 // disconnected from the GATT Server
                 generateNotification("Disconnected from device")
+                clearSavedMacAddress(this@ForegroundService)
+            }
+        }
+
+        override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.w(TAG, "Discovered services services")
+            } else {
+                Log.w(TAG, "onServicesDiscovered received: $status")
             }
         }
     }
@@ -166,6 +182,12 @@ class ForegroundService : Service() {
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, createNotification(message))
+    }
+
+    private fun clearSavedMacAddress(context: Context) {
+        serviceScope.launch {
+            DataStoreManager.clearMacAddress(context)
+        }
     }
 
     override fun onDestroy() {

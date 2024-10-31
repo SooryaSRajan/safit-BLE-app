@@ -11,7 +11,6 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -38,21 +37,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ssr.safitsafety.data.BluetoothScan
+import com.ssr.safitsafety.data.DataStoreManager
 import com.ssr.safitsafety.navigation.Screen
 import com.ssr.safitsafety.navigation.pages.BluetoothListScreen
 import com.ssr.safitsafety.navigation.pages.DataScreen
 import com.ssr.safitsafety.service.ForegroundService
+import kotlinx.coroutines.launch
 import java.util.UUID
 import java.util.function.Consumer
 import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var sharedPref: SharedPreferences
     private var savedMac = mutableStateOf("")
     private var arePermissionsAllowed = mutableStateOf(false)
 
@@ -96,8 +97,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        sharedPref = this.getPreferences(Context.MODE_PRIVATE)
-        savedMac.value = sharedPref.getString(PREF_KEY, "").toString()
+        lifecycleScope.launch {
+            DataStoreManager.getMacAddress(this@MainActivity).collect { macAddress ->
+                savedMac.value = macAddress ?: ""
+            }
+        }
 
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
@@ -188,7 +192,6 @@ class MainActivity : ComponentActivity() {
             if (arePermissionsAllowed.value) {
                 if (savedMac.value.isNotEmpty()) {
                     Intent(this, ForegroundService::class.java).also { intent ->
-                        intent.putExtra(PREF_KEY, savedMac.value)
                         startForegroundService(intent)
                     }
 
@@ -220,7 +223,6 @@ class MainActivity : ComponentActivity() {
                         composable(route = Screen.Scan.route) {
                             BluetoothListScreen(
                                 navController = navController,
-                                sharedPref = sharedPref,
                                 loadDevices = {
                                     stopScan()
                                     startScan()

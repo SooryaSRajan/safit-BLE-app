@@ -1,7 +1,6 @@
 package com.ssr.safitsafety.navigation.pages
 
 import android.annotation.SuppressLint
-import android.content.SharedPreferences
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,26 +28,31 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.ssr.safitsafety.MainActivity.Companion.PREF_KEY
 import com.ssr.safitsafety.data.BluetoothScan
+import com.ssr.safitsafety.data.DataStoreManager
 import com.ssr.safitsafety.navigation.Screen
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, DelicateCoroutinesApi::class)
 @SuppressLint("MissingPermission")
 @Composable
 fun BluetoothDeviceList(
     savedMac: MutableState<String>,
-    sharedPref: SharedPreferences,
     bluetoothDeviceList: List<BluetoothScan>,
     navController: NavHostController
 ) {
+    val context = LocalContext.current
+
     if (savedMac.value != "") {
         Text(text = savedMac.value)
     } else {
@@ -85,12 +89,11 @@ fun BluetoothDeviceList(
                 ) {
                     ListItem(
                         modifier = Modifier.clickable {
-                            with(sharedPref.edit()) {
-                                putString(PREF_KEY, record.macAddress)
+                            GlobalScope.launch {
+                                DataStoreManager.saveMacAddress(context, record.macAddress)
                                 savedMac.value = record.macAddress
-                                navController.navigate(route = Screen.Data.route)
-                                apply()
                             }
+                            navController.navigate(route = Screen.Data.route)
                         },
                         headlineText = { Text(record.deviceName) },
                         supportingText = { Text(record.macAddress) },
@@ -106,7 +109,6 @@ fun BluetoothDeviceList(
 @Composable
 fun BluetoothListScreen(
     savedMac: MutableState<String>,
-    sharedPref: SharedPreferences,
     navController: NavHostController,
     loadDevices: () -> Unit,
     bluetoothDevices: SnapshotStateList<BluetoothScan>,
@@ -147,7 +149,6 @@ fun BluetoothListScreen(
         ) {
             BluetoothDeviceList(
                 savedMac = savedMac,
-                sharedPref = sharedPref,
                 bluetoothDeviceList = bluetoothDevices,
                 navController = navController
             )
