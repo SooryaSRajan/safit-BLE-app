@@ -126,7 +126,7 @@ fun BluetoothListScreen(
                     titleContentColor = MaterialTheme.colorScheme.primary,
                 ),
                 title = {
-                    Text("ArduinoUnoScan")
+                    Text("Safit")
                 }
             )
         },

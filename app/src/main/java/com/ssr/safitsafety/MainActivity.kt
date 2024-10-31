@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val PREF_KEY = "SAVED_MAC"
+        const val HEART_RATE_PROFILE = "0000180d-0000-1000-8000-00805f9b34fb"
     }
 
 
@@ -133,7 +134,7 @@ class MainActivity : ComponentActivity() {
                 val advertisedUuid = serviceUuids?.firstOrNull()?.toString() ?: "Unknown UUID"
 
                 val isHeartRateDevice =
-                    serviceUuids?.any { it.uuid == UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb") } == true
+                    serviceUuids?.any { it.uuid == UUID.fromString(HEART_RATE_PROFILE) } == true
                 val isSafitDevice = advertisedName.equals("Safit", ignoreCase = true)
 
                 if (isHeartRateDevice && isSafitDevice) {

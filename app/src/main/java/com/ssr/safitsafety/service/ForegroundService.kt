@@ -9,8 +9,6 @@ import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
@@ -22,9 +20,7 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.lifecycleScope
 import com.ssr.safitsafety.MainActivity
-import com.ssr.safitsafety.MainActivity.Companion.PREF_KEY
 import com.ssr.safitsafety.data.DataStoreManager
 import com.ssr.safitsafety.data.HearRate
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +29,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 private const val TAG = "BluetoothLeService"
 
@@ -64,7 +61,9 @@ class ForegroundService : Service() {
             createNotification("Emergency detection service running, please do not kill app. "),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
         )
-        initializeBluetoothAdapter()
+        if (!initializeBluetoothAdapter()) {
+            stopForegroundService()
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -72,6 +71,7 @@ class ForegroundService : Service() {
             DataStoreManager.getMacAddress(this@ForegroundService).collect { macAddress ->
                 if (!connect(macAddress)) {
                     createNotification("Failed to connect to device")
+                    stopForegroundService()
                 }
             }
         }
@@ -162,16 +162,33 @@ class ForegroundService : Service() {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 // successfully connected to the GATT Server
                 generateNotification("Successfully connected to device")
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    if (ActivityCompat.checkSelfPermission(
+                            this@ForegroundService,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        return
+                    }
+                    gatt?.discoverServices()
+                } else {
+                    stopForegroundService()
+                }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 // disconnected from the GATT Server
                 generateNotification("Disconnected from device")
-                clearSavedMacAddress(this@ForegroundService)
+                stopForegroundService()
             }
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.w(TAG, "Discovered services services")
+                Log.w(TAG, "Discovered services")
+                var gattCharacteristics = gatt?.services?.stream()?.filter {
+                    it.uuid == UUID.fromString(
+                        MainActivity.HEART_RATE_PROFILE
+                    )
+                }?.findFirst()?.get()?.characteristics
             } else {
                 Log.w(TAG, "onServicesDiscovered received: $status")
             }
@@ -188,6 +205,13 @@ class ForegroundService : Service() {
         serviceScope.launch {
             DataStoreManager.clearMacAddress(context)
         }
+    }
+
+    fun stopForegroundService() {
+        clearSavedMacAddress(this@ForegroundService)
+        createNotification("Terminating background service, reconnect to device to start service again")
+        stopForeground(STOP_FOREGROUND_DETACH)
+        stopSelf()
     }
 
     override fun onDestroy() {
