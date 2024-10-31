@@ -39,12 +39,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.UUID
 
 
 private const val TAG = "BluetoothLeService"
 
-@Suppress("DEPRECATION")
 class ForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     private val CHANNEL_ID = "BLEBroadcastChannel"
@@ -170,8 +171,6 @@ class ForegroundService : Service() {
     }
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
-        var chars: MutableList<BluetoothGattCharacteristic> = mutableListOf()
-
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTING) {
                 generateNotification("Collecting to Safit safety device")
@@ -202,11 +201,13 @@ class ForegroundService : Service() {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.w(TAG, "Discovered services")
 
-                val heartService =
-                    gatt?.getService(UUID.fromString(HEART_RATE_PROFILE))
+                val heartService = gatt?.getService(UUID.fromString(HEART_RATE_PROFILE))
+                Log.d(TAG, "Heart service found: ${heartService != null}")
 
                 // Subscribe to notifications for each characteristic
                 heartService?.characteristics?.forEach { characteristic ->
+                    Log.d(TAG, "Processing characteristic: ${characteristic.uuid}")
+
                     if (characteristic.uuid in listOf(
                             UUID.fromString(HEART_RATE_UUID),
                             UUID.fromString(HRV_UUID),
@@ -221,67 +222,46 @@ class ForegroundService : Service() {
                                 Manifest.permission.BLUETOOTH_CONNECT
                             ) != PackageManager.PERMISSION_GRANTED
                         ) {
+                            Log.e(TAG, "Missing BLUETOOTH_CONNECT permission")
                             return
                         }
-                        gatt.setCharacteristicNotification(characteristic, true)
 
-                        val descriptor = characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                            descriptor.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
-                            gatt.writeDescriptor(descriptor)
+                        val success = gatt.setCharacteristicNotification(characteristic, true)
+                        Log.d(TAG, "Set notification for ${characteristic.uuid}: $success")
+
+                        val descriptor = characteristic.getDescriptor(
+                            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+                        )
+
+                        if (descriptor != null) {
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                val writeSuccess = gatt.writeDescriptor(descriptor)
+                                Log.d(TAG, "Write descriptor for ${characteristic.uuid}: $writeSuccess")
+                            } else {
+                                val writeSuccess = gatt.writeDescriptor(
+                                    descriptor,
+                                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                )
+                                Log.d(TAG, "Write descriptor for ${characteristic.uuid}: $writeSuccess")
+                            }
                         } else {
-                            gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)
+                            Log.e(TAG, "Descriptor not found for ${characteristic.uuid}")
                         }
                     }
                 }
-
             } else {
                 Log.w(TAG, "onServicesDiscovered received: $status")
             }
         }
 
-        override fun onCharacteristicChanged(
+        override fun onDescriptorWrite(
             gatt: BluetoothGatt?,
-            characteristic: BluetoothGattCharacteristic?
+            descriptor: BluetoothGattDescriptor,
+            status: Int
         ) {
-            super.onCharacteristicChanged(gatt, characteristic)
-            when (characteristic?.uuid) {
-                UUID.fromString(HEART_RATE_UUID) -> {
-                    val heartRate =
-                        characteristic?.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "Heart Rate: $heartRate bpm")
-                }
-
-                UUID.fromString(HRV_UUID) -> {
-                    val hrv =
-                        characteristic?.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "HRV: $hrv")
-                }
-
-                UUID.fromString(HRMAD10_UUID) -> {
-                    val hrmad10 =
-                        characteristic?.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "HRMAD10: $hrmad10")
-                }
-
-                UUID.fromString(HRMAD30_UUID) -> {
-                    val hrmad30 =
-                        characteristic?.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "HRMAD30: $hrmad30")
-                }
-
-                UUID.fromString(HRMAD60_UUID) -> {
-                    val hrmad60 =
-                        characteristic?.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "HRMAD60: $hrmad60")
-                }
-
-                UUID.fromString(ECG_UUID) -> {
-                    val ecgValue =
-                        characteristic?.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "ECG Value: $ecgValue")
-                }
-            }
+            super.onDescriptorWrite(gatt, descriptor, status)
+            Log.d(TAG, "Descriptor write completed for ${descriptor.characteristic.uuid}, status: $status")
         }
 
         override fun onCharacteristicChanged(
@@ -290,41 +270,40 @@ class ForegroundService : Service() {
             value: ByteArray
         ) {
             super.onCharacteristicChanged(gatt, characteristic, value)
-            when (characteristic.uuid) {
-                UUID.fromString(HEART_RATE_UUID) -> {
-                    val heartRate =
-                        characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "Heart Rate: $heartRate bpm")
-                }
 
-                UUID.fromString(HRV_UUID) -> {
-                    val hrv =
-                        characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "HRV: $hrv")
-                }
+            // All values are sent as floats from Arduino
+            val floatValue = ByteBuffer.wrap(value)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .float
 
-                UUID.fromString(HRMAD10_UUID) -> {
-                    val hrmad10 =
-                        characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "HRMAD10: $hrmad10")
-                }
+            // Create a copy of the current heart rate value
+            val currentHeartRate = hearRate.value ?: HearRate(0, 0, 0f, 0f, 0f, 0f)
 
-                UUID.fromString(HRMAD30_UUID) -> {
-                    val hrmad30 =
-                        characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "HRMAD30: $hrmad30")
+            // Update only the relevant field based on the characteristic UUID
+            when (characteristic.uuid.toString()) {
+                HEART_RATE_UUID -> {
+                    hearRate.postValue(currentHeartRate.copy(heartRate = floatValue.toInt()))
+                    Log.i(TAG, "Heart Rate: $floatValue bpm")
                 }
-
-                UUID.fromString(HRMAD60_UUID) -> {
-                    val hrmad60 =
-                        characteristic.getFloatValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "HRMAD60: $hrmad60")
+                HRV_UUID -> {
+                    hearRate.postValue(currentHeartRate.copy(hrv = floatValue))
+                    Log.i(TAG, "HRV: $floatValue")
                 }
-
-                UUID.fromString(ECG_UUID) -> {
-                    val ecgValue =
-                        characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_FLOAT, 0)
-                    Log.i(TAG, "ECG Value: $ecgValue")
+                HRMAD10_UUID -> {
+                    hearRate.postValue(currentHeartRate.copy(hrmad10 = floatValue))
+                    Log.i(TAG, "HRMAD10: $floatValue")
+                }
+                HRMAD30_UUID -> {
+                    hearRate.postValue(currentHeartRate.copy(hrmad30 = floatValue))
+                    Log.i(TAG, "HRMAD30: $floatValue")
+                }
+                HRMAD60_UUID -> {
+                    hearRate.postValue(currentHeartRate.copy(hrmad60 = floatValue))
+                    Log.i(TAG, "HRMAD60: $floatValue")
+                }
+                ECG_UUID -> {
+                    hearRate.postValue(currentHeartRate.copy(ecgValue = floatValue.toInt()))
+                    Log.i(TAG, "ECG Value: $floatValue")
                 }
             }
         }

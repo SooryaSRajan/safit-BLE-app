@@ -60,12 +60,12 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val PREF_KEY = "SAVED_MAC"
         const val HEART_RATE_PROFILE = "0000180d-0000-1000-8000-00805f9b34fb"
-        const val HEART_RATE_UUID = "00002b90-0000-1000-8000-00805f9b34fb" // Standard Heart Rate Measurement
-        const val HRV_UUID = "00002b91-0000-1000-8000-00805f9b34fb" // Custom UUID for HRV
-        const val HRMAD10_UUID = "00002b92-0000-1000-8000-00805f9b34fb" // Custom UUID for HRMAD10
-        const val HRMAD30_UUID = "00002b93-0000-1000-8000-00805f9b34fb" // Custom UUID for HRMAD30
-        const val HRMAD60_UUID = "00002b94-0000-1000-8000-00805f9b34fb" // Custom UUID for HRMAD60
-        const val ECG_UUID = "00002b95-0000-1000-8000-00805f9b34fb" // Custom UUID for ECG
+        const val HEART_RATE_UUID = "00002b90-0000-1000-8000-00805f9b34fb"
+        const val HRV_UUID = "00002b91-0000-1000-8000-00805f9b34fb"
+        const val HRMAD10_UUID = "00002b92-0000-1000-8000-00805f9b34fb"
+        const val HRMAD30_UUID = "00002b93-0000-1000-8000-00805f9b34fb"
+        const val HRMAD60_UUID = "00002b94-0000-1000-8000-00805f9b34fb"
+        const val ECG_UUID = "00002b95-0000-1000-8000-00805f9b34fb"
     }
 
 
