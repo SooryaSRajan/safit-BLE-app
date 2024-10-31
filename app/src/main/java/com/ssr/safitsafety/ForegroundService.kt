@@ -8,6 +8,7 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import android.app.PendingIntent
 import android.content.Context
+import android.content.pm.ServiceInfo
 
 class ForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
@@ -22,7 +23,11 @@ class ForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        startForeground(
+            NOTIFICATION_ID,
+            createNotification("Foreground service running to receive ECG values"),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+        )
         startBroadcasting()
     }
 
@@ -36,13 +41,11 @@ class ForegroundService : Service() {
         ).apply {
             description = "Channel for Value Service"
         }
-
-        val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
     }
 
-    private fun createNotification(): Notification {
+    private fun createNotification(text: String): Notification {
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -53,16 +56,18 @@ class ForegroundService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Safit Service")
-            .setContentText("Broadcasting random values...")
+            .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(pendingIntent)
+            .setAutoCancel(false)
+            .setOngoing(true)
             .build()
     }
 
     private fun startBroadcasting() {
         serviceScope.launch {
             while (true) {
-                val randomValues = List(5) { kotlin.random.Random.nextFloat() * 100 }
+                val randomValues = List(10) { kotlin.random.Random.nextFloat() * 100 }
                 broadcastValues(
                     HearRate(
                         randomValues[1].toInt(),
@@ -78,9 +83,14 @@ class ForegroundService : Service() {
         }
     }
 
+    private fun generateNotification(message: String) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(NOTIFICATION_ID, createNotification(message))
+    }
+
     private fun broadcastValues(data: HearRate) {
         Intent(ACTION_VALUE_BROADCAST).apply {
-            putExtra(EXTRA_VALUES, data)
+            putExtra(EXTRA_VALUES, "Hey from service")
             sendBroadcast(this)
         }
     }

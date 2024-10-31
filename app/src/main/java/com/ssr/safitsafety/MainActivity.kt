@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -46,11 +47,7 @@ class MainActivity : ComponentActivity() {
     private val valueReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ForegroundService.ACTION_VALUE_BROADCAST) {
-                heartRateRecord = getSerializable(
-                    this@MainActivity,
-                    ForegroundService.EXTRA_VALUES,
-                    HearRate::class.java
-                )
+                Toast.makeText(this@MainActivity, intent.getStringExtra(ForegroundService.EXTRA_VALUES), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -109,10 +106,18 @@ class MainActivity : ComponentActivity() {
             }
 
             // Register broadcast receiver
-            registerReceiver(
-                valueReceiver,
-                IntentFilter(ForegroundService.ACTION_VALUE_BROADCAST)
-            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(
+                    valueReceiver,
+                    IntentFilter(ForegroundService.ACTION_VALUE_BROADCAST),
+                    RECEIVER_NOT_EXPORTED
+                )
+            } else {
+                registerReceiver(
+                    valueReceiver,
+                    IntentFilter(ForegroundService.ACTION_VALUE_BROADCAST),
+                )
+            }
         }
     }
 }
