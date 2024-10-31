@@ -1,4 +1,4 @@
-package com.ssr.safitsafety
+package com.ssr.safitsafety.service
 
 import android.app.Service
 import android.content.Intent
@@ -10,6 +10,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.ServiceInfo
 import androidx.lifecycle.MutableLiveData
+import com.ssr.safitsafety.data.HearRate
+import com.ssr.safitsafety.MainActivity
 
 class ForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())

@@ -10,35 +10,16 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Observer
+import com.ssr.safitsafety.navigation.NavigationStack
+import com.ssr.safitsafety.service.ForegroundService
 
 class MainActivity : ComponentActivity() {
-
-    private var heartRateRecord by mutableStateOf(
-        HearRate(
-            heartRate = 0,
-            ecgValue = 0,
-            hrv = 0f,
-            hrmad10 = 0f,
-            hrmad30 = 0f,
-            hrmad60 = 0f
-        )
-    )
 
     // Permissions required for location and Bluetooth functionality
     private val permissions = mutableListOf(
@@ -70,7 +51,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ValueDisplay(heartRateRecord) { checkPermissions() }
+                    NavigationStack { checkPermissions() }
                 }
             }
         }
@@ -105,39 +86,5 @@ class MainActivity : ComponentActivity() {
         Intent(this, ForegroundService::class.java).also { intent ->
             startForegroundService(intent)
         }
-
-        ForegroundService.hearRate.observe(this@MainActivity, Observer {
-            heartRateRecord = it
-        })
-    }
-}
-
-@Composable
-fun ValueDisplay(hearRate: HearRate, onLaunch: () -> Unit) {
-
-    LaunchedEffect(Unit) {
-        onLaunch()
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Random Values",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-        Text(
-            text = "Heart rate: ${hearRate.heartRate}",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(vertical = 4.dp)
-        )
-        Text(
-            text = "ECG: ${hearRate.ecgValue}",
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(vertical = 4.dp)
-        )
     }
 }

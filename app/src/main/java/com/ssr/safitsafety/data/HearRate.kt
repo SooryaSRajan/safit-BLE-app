@@ -1,4 +1,4 @@
-package com.ssr.safitsafety
+package com.ssr.safitsafety.data
 
 import java.io.Serializable
 

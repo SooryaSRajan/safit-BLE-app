@@ -37,7 +37,7 @@
             </intent-filter>
         </activity>
         <service
-            android:name=".ForegroundService"
+            android:name=".service.ForegroundService"
             android:foregroundServiceType="location"
             android:enabled="true"
             tools:node="merge"
