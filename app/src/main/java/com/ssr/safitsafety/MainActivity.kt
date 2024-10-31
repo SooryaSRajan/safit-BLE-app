@@ -3,6 +3,7 @@ package com.ssr.safitsafety
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
@@ -47,25 +48,17 @@ import com.ssr.safitsafety.navigation.pages.DataScreen
 import com.ssr.safitsafety.service.ForegroundService
 import java.util.UUID
 import java.util.function.Consumer
+import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var sharedPref: SharedPreferences;
+    private lateinit var sharedPref: SharedPreferences
     private var savedMac = mutableStateOf("")
     private var arePermissionsAllowed = mutableStateOf(false)
 
     companion object {
         const val PREF_KEY = "SAVED_MAC"
     }
-
-    private val targetServiceUuids = setOf(
-        UUID.fromString("00002B90-0000-1000-8000-00805f9b34fb"), // Heart Rate Measurement
-        UUID.fromString("00002B91-0000-1000-8000-00805f9b34fb"), // HRV
-        UUID.fromString("00002B92-0000-1000-8000-00805f9b34fb"), // HRMAD10
-        UUID.fromString("00002B93-0000-1000-8000-00805f9b34fb"), // HRMAD30
-        UUID.fromString("00002B94-0000-1000-8000-00805f9b34fb"), // HRMAD60
-        UUID.fromString("00002B95-0000-1000-8000-00805f9b34fb")  // ECG
-    )
 
 
     private val bluetoothDevices = mutableStateListOf<BluetoothScan>()
@@ -107,7 +100,25 @@ class MainActivity : ComponentActivity() {
         savedMac.value = sharedPref.getString(PREF_KEY, "").toString()
 
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothManager.adapter?.let { adapter -> bluetoothLeScanner = adapter.bluetoothLeScanner }
+        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+        if (bluetoothAdapter == null) {
+            Toast.makeText(
+                this,
+                "Device does not support bluetooth",
+                Toast.LENGTH_SHORT
+            ).show()
+            exitProcess(0)
+        }
+        if (!bluetoothAdapter.isEnabled) {
+            Toast.makeText(
+                this,
+                "Please turn on bluetooth before launching app",
+                Toast.LENGTH_SHORT
+            ).show()
+            exitProcess(0)
+        }
+        bluetoothAdapter.let { adapter -> bluetoothLeScanner = adapter.bluetoothLeScanner }
+
         leScanCallback = object : ScanCallback() {
             @SuppressLint("MissingPermission")
             override fun onScanResult(callbackType: Int, result: ScanResult) {
