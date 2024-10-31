@@ -204,54 +204,57 @@ class ForegroundService : Service() {
                 val heartService = gatt?.getService(UUID.fromString(HEART_RATE_PROFILE))
                 Log.d(TAG, "Heart service found: ${heartService != null}")
 
-                // Subscribe to notifications for each characteristic
-                heartService?.characteristics?.forEach { characteristic ->
-                    Log.d(TAG, "Processing characteristic: ${characteristic.uuid}")
+                // Log all characteristics found
+                Log.d(TAG, "All characteristics in service:")
+                heartService?.characteristics?.forEach { char ->
+                    Log.d(TAG, "Found characteristic: ${char.uuid}")
+                }
 
-                    if (characteristic.uuid in listOf(
-                            UUID.fromString(HEART_RATE_UUID),
-                            UUID.fromString(HRV_UUID),
-                            UUID.fromString(HRMAD10_UUID),
-                            UUID.fromString(HRMAD30_UUID),
-                            UUID.fromString(HRMAD60_UUID),
-                            UUID.fromString(ECG_UUID)
-                        )
-                    ) {
+                // List of all characteristic UUIDs we're looking for
+                val targetUuids = listOf(
+                    HEART_RATE_UUID to "Heart Rate",
+                    HRV_UUID to "HRV",
+                    HRMAD10_UUID to "HRMAD10",
+                    HRMAD30_UUID to "HRMAD30",
+                    HRMAD60_UUID to "HRMAD60",
+                    ECG_UUID to "ECG"
+                )
+
+                // Check each characteristic
+                targetUuids.forEach { (uuid, name) ->
+                    val characteristic = heartService?.getCharacteristic(UUID.fromString(uuid))
+                    if (characteristic == null) {
+                        Log.e(TAG, "$name characteristic not found!")
+                    } else {
+                        Log.d(TAG, "$name characteristic found, setting up notification...")
                         if (ActivityCompat.checkSelfPermission(
                                 this@ForegroundService,
                                 Manifest.permission.BLUETOOTH_CONNECT
-                            ) != PackageManager.PERMISSION_GRANTED
-                        ) {
-                            Log.e(TAG, "Missing BLUETOOTH_CONNECT permission")
-                            return
-                        }
+                            ) == PackageManager.PERMISSION_GRANTED) {
+                            val success = gatt.setCharacteristicNotification(characteristic, true)
+                            Log.d(TAG, "$name notification setup: $success")
 
-                        val success = gatt.setCharacteristicNotification(characteristic, true)
-                        Log.d(TAG, "Set notification for ${characteristic.uuid}: $success")
-
-                        val descriptor = characteristic.getDescriptor(
-                            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-                        )
-
-                        if (descriptor != null) {
-                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                                val writeSuccess = gatt.writeDescriptor(descriptor)
-                                Log.d(TAG, "Write descriptor for ${characteristic.uuid}: $writeSuccess")
+                            val descriptor = characteristic.getDescriptor(
+                                UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+                            )
+                            if (descriptor != null) {
+                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                    val writeSuccess = gatt.writeDescriptor(descriptor)
+                                    Log.d(TAG, "$name descriptor write initiated: $writeSuccess")
+                                } else {
+                                    val writeSuccess = gatt.writeDescriptor(
+                                        descriptor,
+                                        BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                    )
+                                    Log.d(TAG, "$name descriptor write initiated: $writeSuccess")
+                                }
                             } else {
-                                val writeSuccess = gatt.writeDescriptor(
-                                    descriptor,
-                                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                                )
-                                Log.d(TAG, "Write descriptor for ${characteristic.uuid}: $writeSuccess")
+                                Log.e(TAG, "$name descriptor not found!")
                             }
-                        } else {
-                            Log.e(TAG, "Descriptor not found for ${characteristic.uuid}")
                         }
                     }
                 }
-            } else {
-                Log.w(TAG, "onServicesDiscovered received: $status")
             }
         }
 
@@ -265,11 +268,22 @@ class ForegroundService : Service() {
         }
 
         override fun onCharacteristicChanged(
+            gatt: BluetoothGatt?,
+            characteristic: BluetoothGattCharacteristic?
+        ) {
+            super.onCharacteristicChanged(gatt, characteristic)
+            if (characteristic != null) {
+                Log.d(TAG, "Characteristic changed: ${characteristic.uuid}")
+            }
+        }
+
+        override fun onCharacteristicChanged(
             gatt: BluetoothGatt,
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray
         ) {
             super.onCharacteristicChanged(gatt, characteristic, value)
+            Log.d(TAG, "Old callback - Characteristic changed: ${characteristic.uuid}")
 
             // All values are sent as floats from Arduino
             val floatValue = ByteBuffer.wrap(value)
