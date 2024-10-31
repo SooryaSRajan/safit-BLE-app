@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Modifier
@@ -34,7 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.ssr.safitsafety.MainActivity.Companion.prefKey
+import com.ssr.safitsafety.MainActivity.Companion.PREF_KEY
 import com.ssr.safitsafety.data.BluetoothScan
 import com.ssr.safitsafety.navigation.Screen
 
@@ -85,7 +86,7 @@ fun BluetoothDeviceList(
                     ListItem(
                         modifier = Modifier.clickable {
                             with(sharedPref.edit()) {
-                                putString(prefKey, record.macAddress)
+                                putString(PREF_KEY, record.macAddress)
                                 savedMac.value = record.macAddress
                                 navController.navigate(route = Screen.Data.route)
                                 apply()
@@ -106,10 +107,15 @@ fun BluetoothDeviceList(
 fun BluetoothListScreen(
     savedMac: MutableState<String>,
     sharedPref: SharedPreferences,
-    bluetoothDevices: SnapshotStateList<BluetoothScan>,
     navController: NavHostController,
-    onFabClick: () -> Unit,
+    loadDevices: () -> Unit,
+    bluetoothDevices: SnapshotStateList<BluetoothScan>,
 ) {
+
+    LaunchedEffect(Unit) {
+        loadDevices()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -125,7 +131,7 @@ fun BluetoothListScreen(
         floatingActionButton = {
             if (savedMac.value == "") {
                 FloatingActionButton(
-                    onClick = onFabClick,
+                    onClick = loadDevices,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.secondary
                 ) {
