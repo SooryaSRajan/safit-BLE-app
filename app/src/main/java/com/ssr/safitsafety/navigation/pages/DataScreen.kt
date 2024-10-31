@@ -18,6 +18,7 @@ import com.ssr.safitsafety.service.ForegroundService
 
 @Composable
 fun DataScreen() {
+
     var heartRateRecord by remember {
         mutableStateOf(
             HearRate(
