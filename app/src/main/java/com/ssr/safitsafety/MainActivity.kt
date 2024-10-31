@@ -37,16 +37,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import com.ssr.safitsafety.data.BluetoothScan
 import com.ssr.safitsafety.navigation.Screen
 import com.ssr.safitsafety.navigation.pages.BluetoothListScreen
 import com.ssr.safitsafety.navigation.pages.DataScreen
 import com.ssr.safitsafety.service.ForegroundService
+import java.util.UUID
 import java.util.function.Consumer
 
 class MainActivity : ComponentActivity() {
@@ -58,6 +57,16 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val PREF_KEY = "SAVED_MAC"
     }
+
+    private val targetServiceUuids = setOf(
+        UUID.fromString("00002B90-0000-1000-8000-00805f9b34fb"), // Heart Rate Measurement
+        UUID.fromString("00002B91-0000-1000-8000-00805f9b34fb"), // HRV
+        UUID.fromString("00002B92-0000-1000-8000-00805f9b34fb"), // HRMAD10
+        UUID.fromString("00002B93-0000-1000-8000-00805f9b34fb"), // HRMAD30
+        UUID.fromString("00002B94-0000-1000-8000-00805f9b34fb"), // HRMAD60
+        UUID.fromString("00002B95-0000-1000-8000-00805f9b34fb")  // ECG
+    )
+
 
     private val bluetoothDevices = mutableStateListOf<BluetoothScan>()
 
@@ -105,16 +114,22 @@ class MainActivity : ComponentActivity() {
                 val scanRecord = result.scanRecord
                 val serviceUuids = scanRecord?.serviceUuids
 
+                val advertisedName = scanRecord?.deviceName ?: "Unnamed Device"
                 val advertisedUuid = serviceUuids?.firstOrNull()?.toString() ?: "Unknown UUID"
 
-                //TODO:  filter specific profiles (services)
-                bluetoothDevices.add(
-                    BluetoothScan(
-                        deviceName = result.device.name ?: "Unnamed Device",
-                        macAddress = result.device.address,
-                        uuid = advertisedUuid
+                val isHeartRateDevice =
+                    serviceUuids?.any { it.uuid == UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb") } == true
+                val isSafitDevice = advertisedName.equals("Safit", ignoreCase = true)
+
+                if (isHeartRateDevice && isSafitDevice) {
+                    bluetoothDevices.add(
+                        BluetoothScan(
+                            deviceName = (result.device.name ?: advertisedName),
+                            macAddress = result.device.address,
+                            uuid = advertisedUuid
+                        )
                     )
-                )
+                }
             }
 
             override fun onBatchScanResults(results: List<ScanResult>) {
