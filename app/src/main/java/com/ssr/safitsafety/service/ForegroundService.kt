@@ -197,18 +197,14 @@ class ForegroundService : Service() {
             }
         }
 
+        private val gattQueue = GattOperationQueue()
+
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.w(TAG, "Discovered services")
 
                 val heartService = gatt?.getService(UUID.fromString(HEART_RATE_PROFILE))
                 Log.d(TAG, "Heart service found: ${heartService != null}")
-
-                // Log all characteristics found
-                Log.d(TAG, "All characteristics in service:")
-                heartService?.characteristics?.forEach { char ->
-                    Log.d(TAG, "Found characteristic: ${char.uuid}")
-                }
 
                 // List of all characteristic UUIDs we're looking for
                 val targetUuids = listOf(
@@ -220,7 +216,7 @@ class ForegroundService : Service() {
                     ECG_UUID to "ECG"
                 )
 
-                // Check each characteristic
+                // Queue each characteristic operation
                 targetUuids.forEach { (uuid, name) ->
                     val characteristic = heartService?.getCharacteristic(UUID.fromString(uuid))
                     if (characteristic == null) {
@@ -232,25 +228,14 @@ class ForegroundService : Service() {
                                 Manifest.permission.BLUETOOTH_CONNECT
                             ) == PackageManager.PERMISSION_GRANTED) {
                             val success = gatt.setCharacteristicNotification(characteristic, true)
-                            Log.d(TAG, "$name notification setup: $success")
-
-                            val descriptor = characteristic.getDescriptor(
-                                UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-                            )
-                            if (descriptor != null) {
-                                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                                    val writeSuccess = gatt.writeDescriptor(descriptor)
-                                    Log.d(TAG, "$name descriptor write initiated: $writeSuccess")
-                                } else {
-                                    val writeSuccess = gatt.writeDescriptor(
-                                        descriptor,
-                                        BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                            if (success) {
+                                gattQueue.enqueue(
+                                    GattOperationQueue.GattOperation(
+                                        characteristic = characteristic,
+                                        gatt = gatt,
+                                        name = name
                                     )
-                                    Log.d(TAG, "$name descriptor write initiated: $writeSuccess")
-                                }
-                            } else {
-                                Log.e(TAG, "$name descriptor not found!")
+                                )
                             }
                         }
                     }
@@ -264,7 +249,14 @@ class ForegroundService : Service() {
             status: Int
         ) {
             super.onDescriptorWrite(gatt, descriptor, status)
-            Log.d(TAG, "Descriptor write completed for ${descriptor.characteristic.uuid}, status: $status")
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.d(TAG, "Descriptor write successful")
+                gattQueue.onOperationComplete()
+            } else {
+                Log.e(TAG, "Descriptor write failed with status: $status")
+                // You might want to handle the error case differently
+                gattQueue.onOperationComplete() // Skip to next operation even if this one failed
+            }
         }
 
         override fun onCharacteristicChanged(
@@ -343,6 +335,7 @@ class ForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        createNotification("Terminating background service, reconnect to device to start service again")
         super.onDestroy()
         serviceScope.cancel()
     }
