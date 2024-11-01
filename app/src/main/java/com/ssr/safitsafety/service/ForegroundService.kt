@@ -340,7 +340,6 @@ class ForegroundService : Service() {
                 LEADS_UUID -> {
                     if (!currentHeartRate.leadsOff && floatValue == 1.0F) {
                         createNotification("Leads are off, please make sure they are properly seated")
-                        showToast("Leads are off, please make sure they are properly seated")
                     }
                     heartRate.postValue(currentHeartRate.copy(leadsOff = (floatValue == 1.0F)))
                     Log.i(TAG, "Leads off Value: $floatValue")

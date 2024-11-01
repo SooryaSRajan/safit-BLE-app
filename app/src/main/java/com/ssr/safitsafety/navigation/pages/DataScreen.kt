@@ -1,9 +1,11 @@
 package com.ssr.safitsafety.navigation.pages
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -22,14 +24,15 @@ import androidx.compose.ui.unit.dp
 import com.ssr.safitsafety.data.HeartRate
 import com.ssr.safitsafety.service.ForegroundService
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import com.ssr.safitsafety.data.DataStoreManager
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -96,41 +99,45 @@ fun DataScreen() {
                 modifier = Modifier.padding(vertical = 12.dp)
             )
 
-            ReadingCard(
-                title = "Heart Rate",
-                value = "${heartRateRecord.heartRate}",
-                unit = "BPM"
-            )
+            if (heartRateRecord.leadsOff) {
+                ErrorCard(message = "Leads disconnected! Please connect leads properly")
+            } else {
+                ReadingCard(
+                    title = "Heart Rate",
+                    value = "${heartRateRecord.heartRate}",
+                    unit = "BPM"
+                )
 
-            ReadingCard(
-                title = "ECG",
-                value = "${heartRateRecord.ecgValue}",
-                unit = "mV"
-            )
+                ReadingCard(
+                    title = "ECG",
+                    value = "${heartRateRecord.ecgValue}",
+                    unit = "mV"
+                )
 
-            ReadingCard(
-                title = "Heart Rate Variability",
-                value = "%.2f".format(heartRateRecord.hrv),
-                unit = "ms"
-            )
+                ReadingCard(
+                    title = "Heart Rate Variability",
+                    value = "%.2f".format(heartRateRecord.hrv),
+                    unit = "ms"
+                )
 
-            ReadingCard(
-                title = "HRMAD10",
-                value = "%.2f".format(heartRateRecord.hrmad10),
-                unit = ""
-            )
+                ReadingCard(
+                    title = "HRMAD10",
+                    value = "%.2f".format(heartRateRecord.hrmad10),
+                    unit = ""
+                )
 
-            ReadingCard(
-                title = "HRMAD30",
-                value = "%.2f".format(heartRateRecord.hrmad30),
-                unit = ""
-            )
+                ReadingCard(
+                    title = "HRMAD30",
+                    value = "%.2f".format(heartRateRecord.hrmad30),
+                    unit = ""
+                )
 
-            ReadingCard(
-                title = "HRMAD60",
-                value = "%.2f".format(heartRateRecord.hrmad60),
-                unit = ""
-            )
+                ReadingCard(
+                    title = "HRMAD60",
+                    value = "%.2f".format(heartRateRecord.hrmad60),
+                    unit = ""
+                )
+            }
         }
     }
 }
@@ -177,6 +184,41 @@ private fun ReadingCard(
                     modifier = Modifier.padding(bottom = 2.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ErrorCard(
+    message: String,
+) {
+    androidx.compose.material3.Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .border(
+                width = 2.dp,
+                color = Color(0xFF8B1D1D),  // Darker red border
+                shape = MaterialTheme.shapes.medium
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFFEBEE),  // Light red background
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFF8B1D1D),  // Darker red text
+                modifier = Modifier.padding(8.dp),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

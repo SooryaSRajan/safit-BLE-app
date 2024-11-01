@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -277,6 +278,7 @@ class MainActivity : ComponentActivity() {
                                             text = "To proceed, please allow permissions in settings",
                                             style = MaterialTheme.typography.bodyLarge,
                                             color = Color.Gray,
+                                            textAlign = TextAlign.Center,
                                             modifier = Modifier
                                                 .padding(bottom = 16.dp)
                                                 .align(Alignment.CenterHorizontally)
