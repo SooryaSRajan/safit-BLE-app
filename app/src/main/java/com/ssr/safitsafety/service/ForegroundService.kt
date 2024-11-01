@@ -17,9 +17,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
-import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.MutableLiveData
@@ -31,8 +31,9 @@ import com.ssr.safitsafety.MainActivity.Companion.HRMAD10_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRMAD30_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRMAD60_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRV_UUID
+import com.ssr.safitsafety.MainActivity.Companion.LEADS_UUID
 import com.ssr.safitsafety.data.DataStoreManager
-import com.ssr.safitsafety.data.HearRate
+import com.ssr.safitsafety.data.HeartRate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,6 +42,7 @@ import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
+import kotlin.system.exitProcess
 
 
 private const val TAG = "BluetoothLeService"
@@ -53,7 +55,7 @@ class ForegroundService : Service() {
     private var bluetoothAdapter: BluetoothAdapter? = null
 
     companion object {
-        val hearRate = MutableLiveData<HearRate>()
+        val heartRate = MutableLiveData<HeartRate>()
     }
 
     private fun initializeBluetoothAdapter(): Boolean {
@@ -61,6 +63,14 @@ class ForegroundService : Service() {
         if (bluetoothAdapter == null) {
             Log.e(TAG, "Unable to obtain a BluetoothAdapter.")
             return false
+        }
+        if (!bluetoothAdapter!!.isEnabled) {
+            Toast.makeText(
+                this,
+                "Please turn on bluetooth before launching app",
+                Toast.LENGTH_SHORT
+            ).show()
+            return false;
         }
         return true
     }
@@ -200,7 +210,8 @@ class ForegroundService : Service() {
                     HRMAD10_UUID to "HRMAD10",
                     HRMAD30_UUID to "HRMAD30",
                     HRMAD60_UUID to "HRMAD60",
-                    ECG_UUID to "ECG"
+                    ECG_UUID to "ECG",
+                    LEADS_UUID to "LEADS"
                 )
 
                 // Queue each characteristic operation
@@ -270,33 +281,37 @@ class ForegroundService : Service() {
                 .float
 
             // Create a copy of the current heart rate value
-            val currentHeartRate = hearRate.value ?: HearRate(0, 0, 0f, 0f, 0f, 0f)
+            val currentHeartRate = heartRate.value ?: HeartRate(0, 0, 0f, 0f, 0f, 0f, false)
 
             // Update only the relevant field based on the characteristic UUID
             when (characteristic.uuid.toString()) {
                 HEART_RATE_UUID -> {
-                    hearRate.postValue(currentHeartRate.copy(heartRate = floatValue.toInt()))
+                    heartRate.postValue(currentHeartRate.copy(heartRate = floatValue.toInt()))
                     Log.i(TAG, "Heart Rate: $floatValue bpm")
                 }
                 HRV_UUID -> {
-                    hearRate.postValue(currentHeartRate.copy(hrv = floatValue))
+                    heartRate.postValue(currentHeartRate.copy(hrv = floatValue))
                     Log.i(TAG, "HRV: $floatValue")
                 }
                 HRMAD10_UUID -> {
-                    hearRate.postValue(currentHeartRate.copy(hrmad10 = floatValue))
+                    heartRate.postValue(currentHeartRate.copy(hrmad10 = floatValue))
                     Log.i(TAG, "HRMAD10: $floatValue")
                 }
                 HRMAD30_UUID -> {
-                    hearRate.postValue(currentHeartRate.copy(hrmad30 = floatValue))
+                    heartRate.postValue(currentHeartRate.copy(hrmad30 = floatValue))
                     Log.i(TAG, "HRMAD30: $floatValue")
                 }
                 HRMAD60_UUID -> {
-                    hearRate.postValue(currentHeartRate.copy(hrmad60 = floatValue))
+                    heartRate.postValue(currentHeartRate.copy(hrmad60 = floatValue))
                     Log.i(TAG, "HRMAD60: $floatValue")
                 }
                 ECG_UUID -> {
-                    hearRate.postValue(currentHeartRate.copy(ecgValue = floatValue.toInt()))
+                    heartRate.postValue(currentHeartRate.copy(ecgValue = floatValue.toInt()))
                     Log.i(TAG, "ECG Value: $floatValue")
+                }
+                LEADS_UUID -> {
+                    heartRate.postValue(currentHeartRate.copy(leadsOff = (floatValue == 1.0F)))
+                    Log.i(TAG, "Leads off Value: $floatValue")
                 }
             }
         }

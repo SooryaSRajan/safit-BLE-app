@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavController
+import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -66,8 +68,14 @@ class MainActivity : ComponentActivity() {
         const val HRMAD30_UUID = "00002b93-0000-1000-8000-00805f9b34fb"
         const val HRMAD60_UUID = "00002b94-0000-1000-8000-00805f9b34fb"
         const val ECG_UUID = "00002b95-0000-1000-8000-00805f9b34fb"
-    }
+        const val LEADS_UUID = "00002b96-0000-1000-8000-00805f9b34fb"
 
+        fun NavOptionsBuilder.popUpToTop(navController: NavController) {
+            popUpTo(navController.currentBackStackEntry?.destination?.route ?: return) {
+                inclusive =  true
+            }
+        }
+    }
 
     private val bluetoothDevices = mutableStateListOf<BluetoothScan>()
 
@@ -207,12 +215,12 @@ class MainActivity : ComponentActivity() {
             if (isNavHostInitialized.value) {
                 if (arePermissionsAllowed.value) {
                     if (savedMac.value.isNotEmpty()) {
-                        navController.navigate(route = Screen.Data.route)
+                        navController.navigate(route = Screen.Data.route) { popUpToTop(navController) }
                     } else {
-                        navController.navigate(route = Screen.Scan.route)
+                        navController.navigate(route = Screen.Scan.route) { popUpToTop(navController) }
                     }
                 } else {
-                    navController.navigate(route = Screen.Permissions.route)
+                    navController.navigate(route = Screen.Permissions.route) { popUpToTop(navController) }
                 }
             }
 

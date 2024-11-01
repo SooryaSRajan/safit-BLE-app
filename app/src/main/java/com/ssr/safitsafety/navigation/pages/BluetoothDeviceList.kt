@@ -1,15 +1,19 @@
 package com.ssr.safitsafety.navigation.pages
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CardDefaults
@@ -19,6 +23,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialTheme.typography
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -27,7 +32,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color.Companion.Gray
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.ssr.safitsafety.MainActivity.Companion.popUpToTop
 import com.ssr.safitsafety.data.BluetoothScan
 import com.ssr.safitsafety.data.DataStoreManager
 import com.ssr.safitsafety.navigation.Screen
@@ -54,7 +63,27 @@ fun BluetoothDeviceList(
     val context = LocalContext.current
 
     if (savedMac.value != "") {
-        Text(text = savedMac.value)
+        Column(
+            modifier = Modifier
+                .padding(30.dp)
+                .fillMaxWidth()
+                .wrapContentSize(Alignment.Center)
+                .clickable(onClick = { })
+                .clip(shape = RoundedCornerShape(16.dp)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .border(width = 4.dp, color = Gray, shape = RoundedCornerShape(16.dp))
+                    .align(Alignment.CenterHorizontally)
+            ) {
+                Text(
+                    text = "MAC Address: ${savedMac.value}",
+                    modifier = Modifier.padding(16.dp),
+                    textAlign = TextAlign.Center,
+                    style = typography.bodySmall,
+                )
+            }
+        }
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -93,7 +122,8 @@ fun BluetoothDeviceList(
                                 DataStoreManager.saveMacAddress(context, record.macAddress)
                                 savedMac.value = record.macAddress
                             }
-                            navController.navigate(route = Screen.Data.route)
+
+                            navController.navigate(Screen.Data.route) { popUpToTop(navController) }
                         },
                         headlineText = { Text(record.deviceName) },
                         supportingText = { Text(record.macAddress) },

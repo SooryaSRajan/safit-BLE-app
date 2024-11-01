@@ -19,7 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
-import com.ssr.safitsafety.data.HearRate
+import com.ssr.safitsafety.data.HeartRate
 import com.ssr.safitsafety.service.ForegroundService
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,18 +43,19 @@ fun DataScreen() {
 
     var heartRateRecord by remember {
         mutableStateOf(
-            HearRate(
+            HeartRate(
                 heartRate = 0,
                 ecgValue = 0,
                 hrv = 0f,
                 hrmad10 = 0f,
                 hrmad30 = 0f,
-                hrmad60 = 0f
+                hrmad60 = 0f,
+                false
             )
         )
     }
 
-    ForegroundService.hearRate.observe(LocalLifecycleOwner.current) {
+    ForegroundService.heartRate.observe(LocalLifecycleOwner.current) {
         heartRateRecord = it
     }
 
