@@ -19,7 +19,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
@@ -60,12 +62,19 @@ class ForegroundService : Service() {
         val heartRate = MutableLiveData<HeartRate>()
     }
 
+    private fun showToast(message: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
                 val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
                 if (state == BluetoothAdapter.STATE_OFF) {
                     createNotification("Bluetooth turned off, terminating service. Please restart bluetooth")
+                    showToast("Bluetooth turned off, terminating service. Please restart bluetooth")
                     stopForegroundService()
                     exitProcess(0)
                 }
@@ -118,6 +127,7 @@ class ForegroundService : Service() {
                         bluetoothGatt?.disconnect()
                     }
                     createNotification("Failed to connect to device")
+                    showToast("Failed to connect to emergency device")
                     stopForegroundService()
                 }
             }
@@ -330,6 +340,7 @@ class ForegroundService : Service() {
                 LEADS_UUID -> {
                     if (!currentHeartRate.leadsOff && floatValue == 1.0F) {
                         createNotification("Leads are off, please make sure they are properly seated")
+                        showToast("Leads are off, please make sure they are properly seated")
                     }
                     heartRate.postValue(currentHeartRate.copy(leadsOff = (floatValue == 1.0F)))
                     Log.i(TAG, "Leads off Value: $floatValue")
@@ -353,6 +364,7 @@ class ForegroundService : Service() {
     fun stopForegroundService() {
         clearSavedMacAddress(this@ForegroundService)
         createNotification("Terminating background service, reconnect to device to start service again")
+        showToast("Terminating background service, reconnect to device to start service again")
         stopForeground(STOP_FOREGROUND_DETACH)
         stopSelf()
     }
