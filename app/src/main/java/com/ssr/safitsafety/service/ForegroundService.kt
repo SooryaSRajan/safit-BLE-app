@@ -13,8 +13,10 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.IBinder
@@ -58,6 +60,20 @@ class ForegroundService : Service() {
         val heartRate = MutableLiveData<HeartRate>()
     }
 
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                if (state == BluetoothAdapter.STATE_OFF) {
+                    createNotification("Bluetooth turned off, terminating service. Please restart bluetooth")
+                    stopForegroundService()
+                    exitProcess(0)
+                }
+            }
+        }
+    }
+
+
     private fun initializeBluetoothAdapter(): Boolean {
         bluetoothAdapter = (getSystemService(BLUETOOTH_SERVICE) as BluetoothManager).adapter
         if (bluetoothAdapter == null) {
@@ -85,6 +101,8 @@ class ForegroundService : Service() {
         )
         if (!initializeBluetoothAdapter()) {
             stopForegroundService()
+        } else {
+            registerReceiver(bluetoothReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
         }
     }
 
@@ -342,6 +360,7 @@ class ForegroundService : Service() {
     override fun onDestroy() {
         createNotification("Terminating background service, reconnect to device to start service again")
         super.onDestroy()
+        unregisterReceiver(bluetoothReceiver)
         serviceScope.cancel()
     }
 }
