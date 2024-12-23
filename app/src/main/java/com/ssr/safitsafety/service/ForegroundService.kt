@@ -27,6 +27,8 @@ import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.MutableLiveData
+import com.google.firebase.Firebase
+import com.google.firebase.database.database
 import com.ssr.safitsafety.MainActivity
 import com.ssr.safitsafety.MainActivity.Companion.ECG_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HEART_RATE_PROFILE
@@ -55,8 +57,40 @@ class ForegroundService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
     private val CHANNEL_ID = "BLEBroadcastChannel"
     private val NOTIFICATION_ID = 1
-    var bluetoothGatt: BluetoothGatt? = null
+    private var bluetoothGatt: BluetoothGatt? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
+    private val database = Firebase.database("https://safit33-6b519-default-rtdb.asia-southeast1.firebasedatabase.app")
+    private val databaseReference = database.getReference("heartrate")
+    private var lastWriteTimestamp: Long = 0
+    private val writeIntervalMillis = 500L
+
+    private fun writeHeartRateToFirebase(heartRate: HeartRate) {
+        val currentTime = System.currentTimeMillis()
+
+        if (currentTime - lastWriteTimestamp >= writeIntervalMillis && !heartRate.leadsOff) {
+            lastWriteTimestamp = currentTime
+
+            // Prepare the data to write
+            val newRecord = mapOf(
+                "heartRate" to heartRate.heartRate,
+                "hrv" to heartRate.hrv,
+                "hrmad10" to heartRate.hrmad10,
+                "hrmad30" to heartRate.hrmad30,
+                "hrmad60" to heartRate.hrmad60,
+                "timestamp" to currentTime
+            )
+
+            serviceScope.launch {
+                try {
+                    databaseReference.push().setValue(newRecord)
+                    Log.d(TAG, "Successfully wrote data to Firebase: $newRecord")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to write data to Firebase", e)
+                }
+            }
+        }
+    }
+
 
     companion object {
         val heartRate = MutableLiveData<HeartRate>()
@@ -303,46 +337,57 @@ class ForegroundService : Service() {
             super.onCharacteristicChanged(gatt, characteristic, value)
             Log.d(TAG, "Old callback - Characteristic changed: ${characteristic.uuid}")
 
-            // All values are sent as floats from Arduino
             val floatValue = ByteBuffer.wrap(value)
                 .order(ByteOrder.LITTLE_ENDIAN)
                 .float
 
-            // Create a copy of the current heart rate value
             val currentHeartRate = heartRate.value ?: HeartRate(0, 0, 0f, 0f, 0f, 0f, false)
 
-            // Update only the relevant field based on the characteristic UUID
             when (characteristic.uuid.toString()) {
                 HEART_RATE_UUID -> {
-                    heartRate.postValue(currentHeartRate.copy(heartRate = floatValue.toInt()))
+                    val updatedHeartRate = currentHeartRate.copy(heartRate = floatValue.toInt())
+                    heartRate.postValue(updatedHeartRate)
                     Log.i(TAG, "Heart Rate: $floatValue bpm")
+                    writeHeartRateToFirebase(updatedHeartRate)
                 }
                 HRV_UUID -> {
-                    heartRate.postValue(currentHeartRate.copy(hrv = floatValue))
+                    val updatedHeartRate = currentHeartRate.copy(hrv = floatValue)
+                    heartRate.postValue(updatedHeartRate)
                     Log.i(TAG, "HRV: $floatValue")
+                    writeHeartRateToFirebase(updatedHeartRate)
                 }
                 HRMAD10_UUID -> {
-                    heartRate.postValue(currentHeartRate.copy(hrmad10 = floatValue))
+                    val updatedHeartRate = currentHeartRate.copy(hrmad10 = floatValue)
+                    heartRate.postValue(updatedHeartRate)
                     Log.i(TAG, "HRMAD10: $floatValue")
+                    writeHeartRateToFirebase(updatedHeartRate)
                 }
                 HRMAD30_UUID -> {
-                    heartRate.postValue(currentHeartRate.copy(hrmad30 = floatValue))
+                    val updatedHeartRate = currentHeartRate.copy(hrmad30 = floatValue)
+                    heartRate.postValue(updatedHeartRate)
                     Log.i(TAG, "HRMAD30: $floatValue")
+                    writeHeartRateToFirebase(updatedHeartRate)
                 }
                 HRMAD60_UUID -> {
-                    heartRate.postValue(currentHeartRate.copy(hrmad60 = floatValue))
+                    val updatedHeartRate = currentHeartRate.copy(hrmad60 = floatValue)
+                    heartRate.postValue(updatedHeartRate)
                     Log.i(TAG, "HRMAD60: $floatValue")
+                    writeHeartRateToFirebase(updatedHeartRate)
                 }
                 ECG_UUID -> {
-                    heartRate.postValue(currentHeartRate.copy(ecgValue = floatValue.toInt()))
+                    val updatedHeartRate = currentHeartRate.copy(ecgValue = floatValue.toInt())
+                    heartRate.postValue(updatedHeartRate)
                     Log.i(TAG, "ECG Value: $floatValue")
+                    writeHeartRateToFirebase(updatedHeartRate)
                 }
                 LEADS_UUID -> {
+                    val updatedHeartRate = currentHeartRate.copy(leadsOff = (floatValue == 1.0F))
                     if (!currentHeartRate.leadsOff && floatValue == 1.0F) {
                         createNotification("Leads are off, please make sure they are properly seated")
                     }
-                    heartRate.postValue(currentHeartRate.copy(leadsOff = (floatValue == 1.0F)))
+                    heartRate.postValue(updatedHeartRate)
                     Log.i(TAG, "Leads off Value: $floatValue")
+                    writeHeartRateToFirebase(updatedHeartRate)
                 }
             }
         }
