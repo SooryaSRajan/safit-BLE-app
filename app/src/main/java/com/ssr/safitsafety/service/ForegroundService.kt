@@ -28,6 +28,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.MutableLiveData
 import com.google.firebase.Firebase
+import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.database
 import com.ssr.safitsafety.MainActivity
 import com.ssr.safitsafety.MainActivity.Companion.ECG_UUID
@@ -54,15 +55,37 @@ import kotlin.system.exitProcess
 private const val TAG = "BluetoothLeService"
 
 class ForegroundService : Service() {
-    private val serviceScope = CoroutineScope(Dispatchers.Default + Job())
+    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private val CHANNEL_ID = "BLEBroadcastChannel"
     private val NOTIFICATION_ID = 1
     private var bluetoothGatt: BluetoothGatt? = null
     private var bluetoothAdapter: BluetoothAdapter? = null
-    private val database = Firebase.database("https://safit33-6b519-default-rtdb.asia-southeast1.firebasedatabase.app")
-    private val databaseReference = database.getReference("heartrate")
     private var lastWriteTimestamp: Long = 0
     private val writeIntervalMillis = 500L
+
+    companion object {
+        private val database = Firebase.database("https://safit33-6b519-default-rtdb.asia-southeast1.firebasedatabase.app")
+        val heartRate = MutableLiveData<HeartRate>()
+        private var databaseReference: DatabaseReference? = null
+
+        fun toggleState(toggle: Boolean) {
+            if (toggle && databaseReference == null) {
+                val timestamp = System.currentTimeMillis()
+                val referenceName = "HEARTRATE-$timestamp"
+                databaseReference = database.getReference(referenceName)
+                Log.d(TAG, "State set: $referenceName")
+            } else if (!toggle && databaseReference != null) {
+                databaseReference = null
+                Log.d(TAG, "State reset to null")
+            }
+        }
+
+        fun getState(): Boolean {
+            val state = databaseReference != null
+            Log.d(TAG, "State checked: $state")
+            return state
+        }
+    }
 
     private fun writeHeartRateToFirebase(heartRate: HeartRate) {
         val currentTime = System.currentTimeMillis()
@@ -70,7 +93,6 @@ class ForegroundService : Service() {
         if (currentTime - lastWriteTimestamp >= writeIntervalMillis && !heartRate.leadsOff) {
             lastWriteTimestamp = currentTime
 
-            // Prepare the data to write
             val newRecord = mapOf(
                 "heartRate" to heartRate.heartRate,
                 "hrv" to heartRate.hrv,
@@ -80,20 +102,16 @@ class ForegroundService : Service() {
                 "timestamp" to currentTime
             )
 
-            serviceScope.launch {
-                try {
-                    databaseReference.push().setValue(newRecord)
-                    Log.d(TAG, "Successfully wrote data to Firebase: $newRecord")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to write data to Firebase", e)
-                }
-            }
+            databaseReference?.let { ref ->
+                ref.push().setValue(newRecord)
+                    .addOnSuccessListener {
+                        Log.d(TAG, "Successfully wrote data to Firebase: $newRecord")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e(TAG, "Failed to write data to Firebase", e)
+                    }
+            } ?: Log.e(TAG, "DatabaseReference is null, cannot write data")
         }
-    }
-
-
-    companion object {
-        val heartRate = MutableLiveData<HeartRate>()
     }
 
     private fun showToast(message: String) {
@@ -335,7 +353,6 @@ class ForegroundService : Service() {
             value: ByteArray
         ) {
             super.onCharacteristicChanged(gatt, characteristic, value)
-            Log.d(TAG, "Old callback - Characteristic changed: ${characteristic.uuid}")
 
             val floatValue = ByteBuffer.wrap(value)
                 .order(ByteOrder.LITTLE_ENDIAN)
@@ -347,37 +364,31 @@ class ForegroundService : Service() {
                 HEART_RATE_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(heartRate = floatValue.toInt())
                     heartRate.postValue(updatedHeartRate)
-                    Log.i(TAG, "Heart Rate: $floatValue bpm")
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
                 HRV_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(hrv = floatValue)
                     heartRate.postValue(updatedHeartRate)
-                    Log.i(TAG, "HRV: $floatValue")
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
                 HRMAD10_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(hrmad10 = floatValue)
                     heartRate.postValue(updatedHeartRate)
-                    Log.i(TAG, "HRMAD10: $floatValue")
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
                 HRMAD30_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(hrmad30 = floatValue)
                     heartRate.postValue(updatedHeartRate)
-                    Log.i(TAG, "HRMAD30: $floatValue")
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
                 HRMAD60_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(hrmad60 = floatValue)
                     heartRate.postValue(updatedHeartRate)
-                    Log.i(TAG, "HRMAD60: $floatValue")
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
                 ECG_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(ecgValue = floatValue.toInt())
                     heartRate.postValue(updatedHeartRate)
-                    Log.i(TAG, "ECG Value: $floatValue")
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
                 LEADS_UUID -> {
@@ -386,7 +397,6 @@ class ForegroundService : Service() {
                         createNotification("Leads are off, please make sure they are properly seated")
                     }
                     heartRate.postValue(updatedHeartRate)
-                    Log.i(TAG, "Leads off Value: $floatValue")
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
             }

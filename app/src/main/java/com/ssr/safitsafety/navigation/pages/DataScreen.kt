@@ -16,6 +16,8 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -43,6 +45,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DataScreen() {
     val context = LocalContext.current
+    var isCollectingData by remember { mutableStateOf(ForegroundService.getState()) }
 
     var heartRateRecord by remember {
         mutableStateOf(
@@ -62,7 +65,6 @@ fun DataScreen() {
         heartRateRecord = heartRate
     }
 
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -72,6 +74,37 @@ fun DataScreen() {
                 ),
                 title = {
                     Text("Safit")
+                },
+                actions = {
+                    Row(
+                        modifier = Modifier
+                            .padding(end = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Collect Data",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Switch(
+                            checked = isCollectingData,
+                            onCheckedChange = { isChecked ->
+                                isCollectingData = isChecked
+                                ForegroundService.toggleState(isChecked)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                                checkedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                            ),
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                    }
                 }
             )
         },
