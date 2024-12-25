@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
@@ -31,6 +32,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.database
 import com.ssr.safitsafety.MainActivity
+import com.ssr.safitsafety.MainActivity.Companion.AGE_UUID
 import com.ssr.safitsafety.MainActivity.Companion.ECG_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HEART_RATE_PROFILE
 import com.ssr.safitsafety.MainActivity.Companion.HEART_RATE_UUID
@@ -39,6 +41,7 @@ import com.ssr.safitsafety.MainActivity.Companion.HRMAD30_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRMAD60_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRV_UUID
 import com.ssr.safitsafety.MainActivity.Companion.LEADS_UUID
+import com.ssr.safitsafety.MainActivity.Companion.WEIGHT_UUID
 import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.data.HeartRate
 import com.ssr.safitsafety.data.UserDataStoreManager
@@ -65,6 +68,10 @@ class ForegroundService : Service() {
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var lastWriteTimestamp: Long = 0
     private val writeIntervalMillis = 500L
+    private var userDataCollectorJob: Job? = null
+
+    private var weightCharacteristic: BluetoothGattCharacteristic? = null
+    private var ageCharacteristic: BluetoothGattCharacteristic? = null
 
     companion object {
         private val database =
@@ -88,6 +95,45 @@ class ForegroundService : Service() {
             val state = databaseReference != null
             Log.d(TAG, "State checked: $state")
             return state
+        }
+    }
+
+    private fun observeUserData() {
+        userDataCollectorJob = CoroutineScope(Dispatchers.IO).launch {
+            UserDataStoreManager.getUserData(this@ForegroundService)
+                .collect { userData ->
+                    userData?.let {
+                        Log.i(TAG, "User data value change observed in Foreground Service: $userData")
+
+                        if (ActivityCompat.checkSelfPermission(
+                                this@ForegroundService,
+                                Manifest.permission.BLUETOOTH_CONNECT
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
+                            // Write weight
+                            weightCharacteristic?.let { characteristic ->
+                                val weightBytes = ByteBuffer.allocate(4)
+                                    .order(ByteOrder.LITTLE_ENDIAN)
+                                    .putFloat(userData.weight)
+                                    .array()
+                                characteristic.setValue(weightBytes)
+                                bluetoothGatt?.writeCharacteristic(characteristic)
+                                Log.d(TAG, "Writing weight: ${userData.weight}")
+                            }
+
+                            // Write age
+                            ageCharacteristic?.let { characteristic ->
+                                val ageBytes = ByteBuffer.allocate(4)
+                                    .order(ByteOrder.LITTLE_ENDIAN)
+                                    .putInt(userData.age)
+                                    .array()
+                                characteristic.setValue(ageBytes)
+                                bluetoothGatt?.writeCharacteristic(characteristic)
+                                Log.d(TAG, "Writing age: ${userData.age}")
+                            }
+                        }
+                    }
+                }
         }
     }
 
@@ -180,6 +226,7 @@ class ForegroundService : Service() {
             stopForegroundService()
         } else {
             registerReceiver(bluetoothReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+            observeUserData()
         }
     }
 
@@ -263,6 +310,11 @@ class ForegroundService : Service() {
         }
     }
 
+    private fun setupUserDataCharacteristics(service: BluetoothGattService?) {
+        weightCharacteristic = service?.getCharacteristic(UUID.fromString(WEIGHT_UUID))
+        ageCharacteristic = service?.getCharacteristic(UUID.fromString(AGE_UUID))
+    }
+
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTING) {
@@ -297,6 +349,7 @@ class ForegroundService : Service() {
                 Log.w(TAG, "Discovered services")
 
                 val heartService = gatt?.getService(UUID.fromString(HEART_RATE_PROFILE))
+                setupUserDataCharacteristics(heartService)
                 Log.d(TAG, "Heart service found: ${heartService != null}")
 
                 // List of all characteristic UUIDs we're looking for
