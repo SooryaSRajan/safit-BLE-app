@@ -49,6 +49,7 @@ import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.navigation.Screen
 import com.ssr.safitsafety.navigation.pages.BluetoothListScreen
 import com.ssr.safitsafety.navigation.pages.DataScreen
+import com.ssr.safitsafety.navigation.pages.UserDataScreen
 import com.ssr.safitsafety.service.ForegroundService
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -251,7 +252,12 @@ class MainActivity : ComponentActivity() {
                         composable(
                             route = Screen.Data.route
                         ) {
-                            DataScreen()
+                            DataScreen(navController = navController)
+                        }
+                        composable(
+                            route = Screen.UserData.route
+                        ) {
+                            UserDataScreen(navController = navController)
                         }
                         composable(route = Screen.Permissions.route) {
                             Column(

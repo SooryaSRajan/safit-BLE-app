@@ -2,11 +2,17 @@ package com.ssr.safitsafety.navigation.pages
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -27,6 +33,19 @@ fun UserDataScreen(navController: NavHostController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
+
+    val focusManager = LocalFocusManager.current
+    val submitButtonFocusRequester = remember { FocusRequester() }
+
+    // Load saved data
+    LaunchedEffect(Unit) {
+        UserDataStoreManager.getUserData(context).collect { userData ->
+            if (userData != null) {
+                weight = userData.weight.takeIf { it > 0f }
+                age = userData.age.takeIf { it > 0 }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -63,7 +82,6 @@ fun UserDataScreen(navController: NavHostController) {
                                         popUpToTop(navController)
                                     }
                                 } catch (e: Exception) {
-                                    // Handle error
                                     Toast.makeText(context, "Failed to save data", Toast.LENGTH_SHORT).show()
                                 } finally {
                                     isLoading = false
@@ -71,7 +89,9 @@ fun UserDataScreen(navController: NavHostController) {
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(submitButtonFocusRequester),
                     enabled = !isLoading
                 ) {
                     if (isLoading) {
@@ -100,7 +120,13 @@ fun UserDataScreen(navController: NavHostController) {
                     weightError = null
                 },
                 label = { Text("Weight (kg)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                ),
                 isError = weightError != null,
                 supportingText = weightError?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth(),
@@ -118,7 +144,16 @@ fun UserDataScreen(navController: NavHostController) {
                     ageError = null
                 },
                 label = { Text("Age") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                        submitButtonFocusRequester.requestFocus()
+                    }
+                ),
                 isError = ageError != null,
                 supportingText = ageError?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth(),

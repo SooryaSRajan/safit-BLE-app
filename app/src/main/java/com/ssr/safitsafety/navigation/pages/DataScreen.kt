@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,8 +34,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.ssr.safitsafety.data.MacDataStoreManager
+import androidx.navigation.NavHostController
+import com.ssr.safitsafety.MainActivity.Companion.popUpToTop
 import com.ssr.safitsafety.data.HeartRate
+import com.ssr.safitsafety.data.MacDataStoreManager
+import com.ssr.safitsafety.data.UserDataStoreManager
+import com.ssr.safitsafety.navigation.Screen
 import com.ssr.safitsafety.service.ForegroundService
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -43,7 +48,7 @@ import kotlinx.coroutines.launch
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class, DelicateCoroutinesApi::class)
 @Composable
-fun DataScreen() {
+fun DataScreen(navController: NavHostController) {
     val context = LocalContext.current
     var isCollectingData by remember { mutableStateOf(ForegroundService.getState()) }
 
@@ -63,6 +68,16 @@ fun DataScreen() {
 
     ForegroundService.heartRate.observe(LocalLifecycleOwner.current) { heartRate ->
         heartRateRecord = heartRate
+    }
+
+    LaunchedEffect(Unit) {
+        UserDataStoreManager.getUserData(context).collect { userData ->
+            if (userData == null || userData.weight == 0f || userData.age == 0) {
+                navController.navigate(route = Screen.UserData.route) {
+                    popUpToTop(navController)
+                }
+            }
+        }
     }
 
     Scaffold(
