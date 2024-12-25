@@ -41,11 +41,14 @@ import com.ssr.safitsafety.MainActivity.Companion.HRV_UUID
 import com.ssr.safitsafety.MainActivity.Companion.LEADS_UUID
 import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.data.HeartRate
+import com.ssr.safitsafety.data.UserDataStoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
@@ -64,7 +67,8 @@ class ForegroundService : Service() {
     private val writeIntervalMillis = 500L
 
     companion object {
-        private val database = Firebase.database("https://safit33-6b519-default-rtdb.asia-southeast1.firebasedatabase.app")
+        private val database =
+            Firebase.database("https://safit33-6b519-default-rtdb.asia-southeast1.firebasedatabase.app")
         val heartRate = MutableLiveData<HeartRate>()
         private var databaseReference: DatabaseReference? = null
 
@@ -93,24 +97,36 @@ class ForegroundService : Service() {
         if (currentTime - lastWriteTimestamp >= writeIntervalMillis && !heartRate.leadsOff) {
             lastWriteTimestamp = currentTime
 
-            val newRecord = mapOf(
-                "heartRate" to heartRate.heartRate,
-                "hrv" to heartRate.hrv,
-                "hrmad10" to heartRate.hrmad10,
-                "hrmad30" to heartRate.hrmad30,
-                "hrmad60" to heartRate.hrmad60,
-                "timestamp" to currentTime
-            )
+            try {
+                val userData = runBlocking {
+                    UserDataStoreManager.getUserData(this@ForegroundService).first()
+                }
 
-            databaseReference?.let { ref ->
-                ref.push().setValue(newRecord)
-                    .addOnSuccessListener {
-                        Log.d(TAG, "Successfully wrote data to Firebase: $newRecord")
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e(TAG, "Failed to write data to Firebase", e)
-                    }
-            } ?: Log.e(TAG, "DatabaseReference is null, cannot write data")
+                if (userData != null) {
+                    val newRecord = mapOf(
+                        "heartRate" to heartRate.heartRate,
+                        "hrv" to heartRate.hrv,
+                        "hrmad10" to heartRate.hrmad10,
+                        "hrmad30" to heartRate.hrmad30,
+                        "hrmad60" to heartRate.hrmad60,
+                        "weight" to userData.weight,
+                        "age" to userData.age,
+                        "timestamp" to currentTime
+                    )
+
+                    databaseReference?.let { ref ->
+                        ref.push().setValue(newRecord)
+                            .addOnSuccessListener {
+                                Log.d(TAG, "Successfully wrote data to Firebase: $newRecord")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e(TAG, "Failed to write data to Firebase", e)
+                            }
+                    } ?: Log.e(TAG, "DatabaseReference is null, cannot write data")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error reading from DataStore", e)
+            }
         }
     }
 
@@ -304,7 +320,8 @@ class ForegroundService : Service() {
                         if (ActivityCompat.checkSelfPermission(
                                 this@ForegroundService,
                                 Manifest.permission.BLUETOOTH_CONNECT
-                            ) == PackageManager.PERMISSION_GRANTED) {
+                            ) == PackageManager.PERMISSION_GRANTED
+                        ) {
                             val success = gatt.setCharacteristicNotification(characteristic, true)
                             if (success) {
                                 gattQueue.enqueue(
@@ -366,31 +383,37 @@ class ForegroundService : Service() {
                     heartRate.postValue(updatedHeartRate)
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
+
                 HRV_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(hrv = floatValue)
                     heartRate.postValue(updatedHeartRate)
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
+
                 HRMAD10_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(hrmad10 = floatValue)
                     heartRate.postValue(updatedHeartRate)
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
+
                 HRMAD30_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(hrmad30 = floatValue)
                     heartRate.postValue(updatedHeartRate)
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
+
                 HRMAD60_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(hrmad60 = floatValue)
                     heartRate.postValue(updatedHeartRate)
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
+
                 ECG_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(ecgValue = floatValue.toInt())
                     heartRate.postValue(updatedHeartRate)
                     writeHeartRateToFirebase(updatedHeartRate)
                 }
+
                 LEADS_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(leadsOff = (floatValue == 1.0F))
                     if (!currentHeartRate.leadsOff && floatValue == 1.0F) {
