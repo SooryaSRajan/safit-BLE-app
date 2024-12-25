@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.ssr.safitsafety.MainActivity.Companion.popUpToTop
 import com.ssr.safitsafety.data.BluetoothScan
-import com.ssr.safitsafety.data.DataStoreManager
+import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.navigation.Screen
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -119,7 +119,7 @@ fun BluetoothDeviceList(
                     ListItem(
                         modifier = Modifier.clickable {
                             GlobalScope.launch {
-                                DataStoreManager.saveMacAddress(context, record.macAddress)
+                                MacDataStoreManager.saveMacAddress(context, record.macAddress)
                                 savedMac.value = record.macAddress
                             }
 

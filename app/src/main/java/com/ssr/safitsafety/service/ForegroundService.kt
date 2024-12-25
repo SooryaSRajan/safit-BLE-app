@@ -39,7 +39,7 @@ import com.ssr.safitsafety.MainActivity.Companion.HRMAD30_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRMAD60_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRV_UUID
 import com.ssr.safitsafety.MainActivity.Companion.LEADS_UUID
-import com.ssr.safitsafety.data.DataStoreManager
+import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.data.HeartRate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -169,7 +169,7 @@ class ForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         serviceScope.launch {
-            DataStoreManager.getMacAddress(this@ForegroundService).collect { macAddress ->
+            MacDataStoreManager.getMacAddress(this@ForegroundService).collect { macAddress ->
                 if (!connect(macAddress)) {
                     if (ActivityCompat.checkSelfPermission(
                             this@ForegroundService,
@@ -411,7 +411,7 @@ class ForegroundService : Service() {
 
     private fun clearSavedMacAddress(context: Context) {
         serviceScope.launch {
-            DataStoreManager.clearMacAddress(context)
+            MacDataStoreManager.clearMacAddress(context)
         }
     }
 

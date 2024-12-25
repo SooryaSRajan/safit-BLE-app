@@ -33,7 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.ssr.safitsafety.data.DataStoreManager
+import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.data.HeartRate
 import com.ssr.safitsafety.service.ForegroundService
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -112,7 +112,7 @@ fun DataScreen() {
             ExtendedFloatingActionButton(
                 onClick = {
                     GlobalScope.launch {
-                        DataStoreManager.clearMacAddress(context)
+                        MacDataStoreManager.clearMacAddress(context)
                     }
                 },
                 icon = { Icon(Icons.Filled.Close, "Disconnect.") },

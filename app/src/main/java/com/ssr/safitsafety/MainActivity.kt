@@ -45,7 +45,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ssr.safitsafety.data.BluetoothScan
-import com.ssr.safitsafety.data.DataStoreManager
+import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.navigation.Screen
 import com.ssr.safitsafety.navigation.pages.BluetoothListScreen
 import com.ssr.safitsafety.navigation.pages.DataScreen
@@ -61,7 +61,9 @@ class MainActivity : ComponentActivity() {
     private var arePermissionsAllowed = mutableStateOf(false)
 
     companion object {
-        const val PREF_KEY = "SAVED_MAC"
+        const val MAC_PREF_KEY = "SAVED_MAC"
+        const val USER_WEIGHT_PREF_KEY = "SAVED_USER_WEIGHT"
+        const val USER_AGE_PREF_KEY = "SAVED_USER_AGE"
         const val HEART_RATE_PROFILE = "0000180d-0000-1000-8000-00805f9b34fb"
         const val HEART_RATE_UUID = "00002b90-0000-1000-8000-00805f9b34fb"
         const val HRV_UUID = "00002b91-0000-1000-8000-00805f9b34fb"
@@ -114,7 +116,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
-            DataStoreManager.getMacAddress(this@MainActivity).collect { macAddress ->
+            MacDataStoreManager.getMacAddress(this@MainActivity).collect { macAddress ->
                 savedMac.value = macAddress ?: ""
             }
         }
