@@ -15,7 +15,7 @@ object UserDataStoreManager {
 
     private val Context.dataStore by preferencesDataStore(name = DATASTORE_NAME)
 
-    private val USER_WEIGHT_KEY = floatPreferencesKey(MainActivity.USER_WEIGHT_PREF_KEY)
+    private val USER_WEIGHT_KEY = intPreferencesKey(MainActivity.USER_WEIGHT_PREF_KEY)
     private val USER_AGE_KEY = intPreferencesKey(MainActivity.USER_AGE_PREF_KEY)
     private val FORCE_UPDATE_KEY = intPreferencesKey("force_update_key")
 
@@ -37,7 +37,7 @@ object UserDataStoreManager {
         return context.dataStore.data
             .map { preferences ->
                 UserData(
-                    preferences[USER_WEIGHT_KEY] ?: 0f,
+                    preferences[USER_WEIGHT_KEY] ?: 0,
                     preferences[USER_AGE_KEY] ?: 0
                 )
             }

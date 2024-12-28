@@ -74,7 +74,7 @@ fun DataScreen(navController: NavHostController) {
 
     LaunchedEffect(Unit) {
         UserDataStoreManager.getUserData(context).collect { userData ->
-            if (userData == null || userData.weight == 0f || userData.age == 0) {
+            if (userData == null || userData.weight == 0 || userData.age == 0) {
                 navController.navigate(route = Screen.UserData.route) {
                     popUpToTop(navController)
                 }

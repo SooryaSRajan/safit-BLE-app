@@ -99,12 +99,16 @@ class ForegroundService : Service() {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun observeUserData() {
         userDataCollectorJob = CoroutineScope(Dispatchers.IO).launch {
             UserDataStoreManager.getUserData(this@ForegroundService)
                 .collect { userData ->
                     userData?.let {
-                        Log.i(TAG, "User data value change observed in Foreground Service: $userData")
+                        Log.i(
+                            TAG,
+                            "User data value change observed in Foreground Service: $userData"
+                        )
 
                         if (ActivityCompat.checkSelfPermission(
                                 this@ForegroundService,
@@ -115,7 +119,7 @@ class ForegroundService : Service() {
                             weightCharacteristic?.let { characteristic ->
                                 val weightBytes = ByteBuffer.allocate(4)
                                     .order(ByteOrder.LITTLE_ENDIAN)
-                                    .putFloat(userData.weight)
+                                    .putInt(userData.weight)
                                     .array()
 
                                 bluetoothGatt?.let { gatt ->
@@ -378,8 +382,8 @@ class ForegroundService : Service() {
                     HRMAD60_UUID to "HRMAD60",
                     ECG_UUID to "ECG",
                     LEADS_UUID to "LEADS",
-                    AGE_UUID to "Age",          // Add Age characteristic
-                    WEIGHT_UUID to "Weight"     // Add Weight characteristic
+                    WEIGHT_UUID to "Weight",
+                    AGE_UUID to "Age"
                 )
 
                 targetUuids.forEach { (uuid, name) ->
@@ -395,25 +399,23 @@ class ForegroundService : Service() {
                             ) == PackageManager.PERMISSION_GRANTED
                         ) {
                             // Enable notifications for read characteristics
-                            if (uuid !in listOf(AGE_UUID, WEIGHT_UUID)) {
-                                val success = gatt.setCharacteristicNotification(characteristic, true)
-                                if (success) {
-                                    gattQueue.enqueue(
-                                        GattOperationQueue.GattOperation(
-                                            characteristic = characteristic,
-                                            gatt = gatt,
-                                            name = name
-                                        )
-                                    )
-                                } else {
-                                    Log.d("GattQueue", "Setting up notification for $name failed")
-                                }
-                            }
-
+                            val success = gatt.setCharacteristicNotification(characteristic, true)
                             // For age and weight, configure them for write operations
                             if (uuid in listOf(AGE_UUID, WEIGHT_UUID)) {
                                 Log.d("GattQueue", "Setting up $name for write operations")
-                                characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                                characteristic.writeType =
+                                    BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                            }
+                            if (success) {
+                                gattQueue.enqueue(
+                                    GattOperationQueue.GattOperation(
+                                        characteristic = characteristic,
+                                        gatt = gatt,
+                                        name = name
+                                    )
+                                )
+                            } else {
+                                Log.d("GattQueue", "Setting up notification for $name failed")
                             }
                         }
                     }
@@ -432,9 +434,13 @@ class ForegroundService : Service() {
                 }
             } else {
                 if (characteristic != null) {
-                    Log.e("GattQueue", "Characteristic ${characteristic.uuid} write failed with status: $status")
+                    Log.e(
+                        "GattQueue",
+                        "Characteristic ${characteristic.uuid} write failed with status: $status"
+                    )
                 }
             }
+            gattQueue.onOperationComplete()
         }
 
         override fun onDescriptorWrite(

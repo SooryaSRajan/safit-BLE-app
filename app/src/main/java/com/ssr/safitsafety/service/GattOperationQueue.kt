@@ -51,7 +51,7 @@ class GattOperationQueue {
                     operation.gatt.writeCharacteristic(
                         operation.characteristic,
                         operation.value,
-                        BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                     )
                 } else {
                     @Suppress("DEPRECATION")

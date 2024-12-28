@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserDataScreen(navController: NavHostController) {
-    var weight by remember { mutableStateOf<Float?>(null) }
+    var weight by remember { mutableStateOf<Int?>(null) }
     var age by remember { mutableStateOf<Int?>(null) }
     var weightError by remember { mutableStateOf<String?>(null) }
     var ageError by remember { mutableStateOf<String?>(null) }
@@ -41,7 +41,7 @@ fun UserDataScreen(navController: NavHostController) {
     LaunchedEffect(Unit) {
         UserDataStoreManager.getUserData(context).collect { userData ->
             if (userData != null) {
-                weight = userData.weight.takeIf { it > 0f }
+                weight = userData.weight.takeIf { it > 0 }
                 age = userData.age.takeIf { it > 0 }
             }
         }
@@ -116,12 +116,12 @@ fun UserDataScreen(navController: NavHostController) {
             OutlinedTextField(
                 value = weight?.toString() ?: "",
                 onValueChange = {
-                    weight = it.toFloatOrNull()
+                    weight = it.toIntOrNull()
                     weightError = null
                 },
                 label = { Text("Weight (kg)") },
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
+                    keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next
                 ),
                 keyboardActions = KeyboardActions(
@@ -167,11 +167,11 @@ fun UserDataScreen(navController: NavHostController) {
     }
 }
 
-private fun validateWeight(weight: Float?): String? {
+private fun validateWeight(weight: Int?): String? {
     return when {
         weight == null -> "Weight is required"
-        weight <= 0f -> "Weight must be greater than 0"
-        weight > 500f -> "Please enter a realistic weight"
+        weight <= 0 -> "Weight must be greater than 0"
+        weight > 500 -> "Please enter a realistic weight"
         else -> null
     }
 }
