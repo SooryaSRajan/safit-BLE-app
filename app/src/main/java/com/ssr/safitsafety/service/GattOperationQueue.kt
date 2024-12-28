@@ -16,7 +16,8 @@ class GattOperationQueue {
     data class GattOperation(
         val characteristic: BluetoothGattCharacteristic,
         val gatt: BluetoothGatt,
-        val name: String
+        val name: String,
+        val value: ByteArray? = null
     )
 
     @Synchronized
@@ -44,24 +45,42 @@ class GattOperationQueue {
         queue.peek()?.let { operation ->
             isProcessing = true
 
-            val descriptor = operation.characteristic.getDescriptor(
-                UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
-            )
-
-            if (descriptor != null) {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    operation.gatt.writeDescriptor(descriptor)
-                } else {
-                    operation.gatt.writeDescriptor(
-                        descriptor,
-                        BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+            if (operation.value != null) {
+                // This is a write operation
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    operation.gatt.writeCharacteristic(
+                        operation.characteristic,
+                        operation.value,
+                        BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                     )
+                } else {
+                    @Suppress("DEPRECATION")
+                    operation.characteristic.value = operation.value
+                    @Suppress("DEPRECATION")
+                    operation.gatt.writeCharacteristic(operation.characteristic)
                 }
-                Log.d("GattQueue", "${operation.name} descriptor write initiated")
+                Log.d("GattQueue", "${operation.name} write initiated with value")
             } else {
-                Log.e("GattQueue", "${operation.name} descriptor not found!")
-                onOperationComplete() // Move to next operation if this one failed
+                val descriptor = operation.characteristic.getDescriptor(
+                    UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+                )
+
+                if (descriptor != null) {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                        descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        operation.gatt.writeDescriptor(descriptor)
+                    } else {
+                        operation.gatt.writeDescriptor(
+                            descriptor,
+                            BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        )
+                    }
+                    Log.d("GattQueue", "${operation.name} descriptor write initiated")
+                } else {
+                    Log.e("GattQueue", "${operation.name} descriptor not found!")
+                    onOperationComplete() // Move to next operation if this one failed
+                }
+
             }
         }
     }
