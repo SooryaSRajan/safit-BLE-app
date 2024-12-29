@@ -199,6 +199,9 @@ fun DataScreen(navController: NavHostController) {
                     value = "%.2f".format(heartRateRecord.hrmad60),
                     unit = ""
                 )
+                if(heartRateRecord.panic) {
+                    ErrorCard("Panic detected! Alerting emergency contacts")
+                }
             }
         }
     }

@@ -557,7 +557,8 @@ class ForegroundService : Service() {
 
                 PANIC_UUID -> {
                     val updatedHeartRate = currentHeartRate.copy(panic = (floatValue == 1.0F))
-                    if (!currentHeartRate.panic && floatValue == 1.0F) {
+                    Log.e("GattQueue", "Panic value received: $floatValue")
+                    if (floatValue == 1.0F) {
                         createNotification("Panic detected, sending current location to all emergency contacts!")
                     }
                     heartRate.postValue(updatedHeartRate)
