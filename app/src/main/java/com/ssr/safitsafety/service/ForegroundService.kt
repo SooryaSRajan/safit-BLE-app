@@ -41,6 +41,7 @@ import com.ssr.safitsafety.MainActivity.Companion.HRMAD30_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRMAD60_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRV_UUID
 import com.ssr.safitsafety.MainActivity.Companion.LEADS_UUID
+import com.ssr.safitsafety.MainActivity.Companion.PANIC_UUID
 import com.ssr.safitsafety.MainActivity.Companion.WEIGHT_UUID
 import com.ssr.safitsafety.data.HeartRate
 import com.ssr.safitsafety.data.MacDataStoreManager
@@ -397,7 +398,8 @@ class ForegroundService : Service() {
                     ECG_UUID to "ECG",
                     LEADS_UUID to "LEADS",
                     WEIGHT_UUID to "Weight",
-                    AGE_UUID to "Age"
+                    AGE_UUID to "Age",
+                    PANIC_UUID to "Panic"
                 )
 
                 targetUuids.forEach { (uuid, name) ->
@@ -493,7 +495,11 @@ class ForegroundService : Service() {
                 .order(ByteOrder.LITTLE_ENDIAN)
                 .float
 
-            val currentHeartRate = heartRate.value ?: HeartRate(0, 0, 0f, 0f, 0f, 0f, false)
+            val currentHeartRate = heartRate.value ?: HeartRate(
+                0, 0, 0f, 0f, 0f, 0f,
+                leadsOff = false,
+                panic = false
+            )
 
             when (characteristic.uuid.toString()) {
                 HEART_RATE_UUID -> {
@@ -547,6 +553,15 @@ class ForegroundService : Service() {
 
                 AGE_UUID -> {
                     Log.e("GattQueue", "Age UUID changes and received from arduino $floatValue")
+                }
+
+                PANIC_UUID -> {
+                    val updatedHeartRate = currentHeartRate.copy(panic = (floatValue == 1.0F))
+                    if (!currentHeartRate.panic && floatValue == 1.0F) {
+                        createNotification("Panic detected, sending current location to all emergency contacts!")
+                    }
+                    heartRate.postValue(updatedHeartRate)
+                    writeHeartRateToFirebase(updatedHeartRate)
                 }
             }
         }

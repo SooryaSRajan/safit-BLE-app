@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
         const val LEADS_UUID = "00002b96-0000-1000-8000-00805f9b34fb"
         const val WEIGHT_UUID = "00002b97-0000-1000-8000-00805f9b34fb"
         const val AGE_UUID = "00002b98-0000-1000-8000-00805f9b34fb"
+        const val PANIC_UUID = "00002b99-0000-1000-8000-00805f9b34fb"
 
         fun NavOptionsBuilder.popUpToTop(navController: NavController) {
             popUpTo(navController.currentBackStackEntry?.destination?.route ?: return) {

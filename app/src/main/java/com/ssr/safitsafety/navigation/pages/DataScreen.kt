@@ -63,7 +63,8 @@ fun DataScreen(navController: NavHostController) {
                 hrmad10 = 0f,
                 hrmad30 = 0f,
                 hrmad60 = 0f,
-                false
+                leadsOff = false,
+                panic = false
             )
         )
     }

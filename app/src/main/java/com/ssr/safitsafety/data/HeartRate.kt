@@ -10,5 +10,6 @@ data class HeartRate(
     val hrmad10: Float,
     val hrmad30: Float,
     val hrmad60: Float,
-    val leadsOff: Boolean
+    val leadsOff: Boolean,
+    val panic: Boolean
 ) : Serializable
