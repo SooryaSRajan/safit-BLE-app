@@ -42,8 +42,8 @@ import com.ssr.safitsafety.MainActivity.Companion.HRMAD60_UUID
 import com.ssr.safitsafety.MainActivity.Companion.HRV_UUID
 import com.ssr.safitsafety.MainActivity.Companion.LEADS_UUID
 import com.ssr.safitsafety.MainActivity.Companion.WEIGHT_UUID
-import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.data.HeartRate
+import com.ssr.safitsafety.data.MacDataStoreManager
 import com.ssr.safitsafety.data.UserDataStoreManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -115,48 +115,62 @@ class ForegroundService : Service() {
                                 Manifest.permission.BLUETOOTH_CONNECT
                             ) == PackageManager.PERMISSION_GRANTED
                         ) {
-                            // Write weight
-                            weightCharacteristic?.let { characteristic ->
-                                val weightBytes = ByteBuffer.allocate(4)
-                                    .order(ByteOrder.LITTLE_ENDIAN)
-                                    .putInt(userData.weight)
-                                    .array()
-
-                                bluetoothGatt?.let { gatt ->
-                                    gattQueue.enqueue(
-                                        GattOperationQueue.GattOperation(
-                                            characteristic = characteristic,
-                                            gatt = gatt,
-                                            name = "Weight Write",
-                                            value = weightBytes
-                                        )
-                                    )
-                                    Log.d(TAG, "Queued weight write: ${userData.weight}")
-                                }
-                            }
-
-                            // Write age
-                            ageCharacteristic?.let { characteristic ->
-                                val ageBytes = ByteBuffer.allocate(4)
-                                    .order(ByteOrder.LITTLE_ENDIAN)
-                                    .putInt(userData.age)
-                                    .array()
-
-                                bluetoothGatt?.let { gatt ->
-                                    gattQueue.enqueue(
-                                        GattOperationQueue.GattOperation(
-                                            characteristic = characteristic,
-                                            gatt = gatt,
-                                            name = "Age Write",
-                                            value = ageBytes
-                                        )
-                                    )
-                                    Log.d(TAG, "Queued age write: ${userData.age}")
-                                }
-                            }
+                            writeWeight(userData.weight)
+                            writeAge(userData.age)
                         }
                     }
                 }
+        }
+    }
+
+    private fun sendInitialUserData() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val userData = UserDataStoreManager.getUserDataImmediately(this@ForegroundService)
+            Log.d(TAG, "Initial user data fetched: $userData")
+            userData?.let { writeWeight(it.weight) }
+            userData?.let { writeAge(it.age) }
+        }
+    }
+
+    private fun writeWeight(weight: Int) {
+        weightCharacteristic?.let { characteristic ->
+            val weightBytes = ByteBuffer.allocate(4)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .putInt(weight)
+                .array()
+
+            bluetoothGatt?.let { gatt ->
+                gattQueue.enqueue(
+                    GattOperationQueue.GattOperation(
+                        characteristic = characteristic,
+                        gatt = gatt,
+                        name = "Weight Write",
+                        value = weightBytes
+                    )
+                )
+                Log.d(TAG, "Queued weight write: $weight")
+            }
+        }
+    }
+
+    private fun writeAge(age: Int) {
+        ageCharacteristic?.let { characteristic ->
+            val ageBytes = ByteBuffer.allocate(4)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .putInt(age)
+                .array()
+
+            bluetoothGatt?.let { gatt ->
+                gattQueue.enqueue(
+                    GattOperationQueue.GattOperation(
+                        characteristic = characteristic,
+                        gatt = gatt,
+                        name = "Age Write",
+                        value = ageBytes
+                    )
+                )
+                Log.d(TAG, "Queued age write: $age")
+            }
         }
     }
 
@@ -420,6 +434,8 @@ class ForegroundService : Service() {
                         }
                     }
                 }
+
+                sendInitialUserData()
             }
         }
 
@@ -561,5 +577,6 @@ class ForegroundService : Service() {
         super.onDestroy()
         unregisterReceiver(bluetoothReceiver)
         serviceScope.cancel()
+        userDataCollectorJob?.cancel()
     }
 }

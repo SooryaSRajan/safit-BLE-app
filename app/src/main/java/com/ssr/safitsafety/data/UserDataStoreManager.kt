@@ -3,11 +3,11 @@ package com.ssr.safitsafety.data
 import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.ssr.safitsafety.MainActivity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 object UserDataStoreManager {
@@ -43,11 +43,16 @@ object UserDataStoreManager {
             }
     }
 
-    suspend fun clearUserData(context: Context) {
-        context.dataStore.edit { preferences ->
-            preferences.remove(USER_WEIGHT_KEY)
-            preferences.remove(USER_AGE_KEY)
-            preferences.remove(FORCE_UPDATE_KEY)
+    suspend fun getUserDataImmediately(context: Context): UserData? {
+        return try {
+            val preferences = context.dataStore.data.first() // This suspends and retrieves the current data
+            UserData(
+                preferences[USER_WEIGHT_KEY] ?: 0,
+                preferences[USER_AGE_KEY] ?: 0
+            )
+        } catch (e: Exception) {
+            Log.e("UserData", "Error getting user data", e)
+            null
         }
     }
 }
