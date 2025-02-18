@@ -75,7 +75,8 @@ fun UserDataScreen(navController: NavHostController) {
                                         context,
                                         UserData(
                                             weight = weight!!,
-                                            age = age!!
+                                            age = age!!,
+                                            phoneNumber = ArrayList()
                                         )
                                     )
                                     navController.navigate(Screen.Data.route) {
@@ -163,6 +164,17 @@ fun UserDataScreen(navController: NavHostController) {
                 ),
                 enabled = !isLoading
             )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
+            ) {
+                //todo: here comes
+            }
         }
     }
 }

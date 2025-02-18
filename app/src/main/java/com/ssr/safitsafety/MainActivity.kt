@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
         const val MAC_PREF_KEY = "SAVED_MAC"
         const val USER_WEIGHT_PREF_KEY = "SAVED_USER_WEIGHT"
         const val USER_AGE_PREF_KEY = "SAVED_USER_AGE"
+        const val EMERGENCY_CONTACTS_PREF_KEY = "EMERGENCY_CONTACTS_PREF_KEY"
         const val HEART_RATE_PROFILE = "0000180d-0000-1000-8000-00805f9b34fb"
         const val HEART_RATE_UUID = "00002b90-0000-1000-8000-00805f9b34fb"
         const val HRV_UUID = "00002b91-0000-1000-8000-00805f9b34fb"
@@ -221,7 +222,7 @@ class MainActivity : ComponentActivity() {
 
             if (isNavHostInitialized.value) {
                 if (arePermissionsAllowed.value) {
-                    if (savedMac.value.isNotEmpty()) {
+                    if (!savedMac.value.isNotEmpty()) {
                         navController.navigate(route = Screen.Data.route) { popUpToTop(navController) }
                     } else {
                         navController.navigate(route = Screen.Scan.route) { popUpToTop(navController) }
