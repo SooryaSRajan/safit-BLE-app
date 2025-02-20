@@ -1,11 +1,20 @@
 package com.ssr.safitsafety.navigation.pages
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
@@ -17,6 +26,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.ssr.safitsafety.MainActivity.Companion.popUpToTop
+import com.ssr.safitsafety.components.numberpicker.PhoneNumberInput
 import com.ssr.safitsafety.data.UserData
 import com.ssr.safitsafety.data.UserDataStoreManager
 import com.ssr.safitsafety.navigation.Screen
@@ -83,7 +93,11 @@ fun UserDataScreen(navController: NavHostController) {
                                         popUpToTop(navController)
                                     }
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Failed to save data", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to save data",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 } finally {
                                     isLoading = false
                                 }
@@ -165,15 +179,112 @@ fun UserDataScreen(navController: NavHostController) {
                 enabled = !isLoading
             )
 
-            Card(
+            //TODO: replace with store fetch and save
+            MultiPhoneNumberInput(initialPhoneNumbers = listOf(
+                "+1-5555555555",
+                "+44-1234567890"
+            ),
+                onPhoneNumbersChanged = {})
+        }
+    }
+}
+
+@Composable
+fun MultiPhoneNumberInput(
+    modifier: Modifier = Modifier,
+    initialPhoneNumbers: List<String> = listOf(""),
+    onPhoneNumbersChanged: (List<String>) -> Unit
+) {
+    var phoneNumbers by remember(initialPhoneNumbers) { mutableStateOf(initialPhoneNumbers) }
+    val scrollState = rememberScrollState()
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(state = scrollState)
+        ) {
+            Text(
+                text = "Emergency Contacts",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+
+            )
+            phoneNumbers.forEachIndexed { index, phoneNumber ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    PhoneNumberInput(
+                        onPhoneNumberChanged = { newNumber ->
+                            phoneNumbers = phoneNumbers.toMutableList().apply {
+                                this[index] = newNumber
+                            }
+                            onPhoneNumbersChanged(phoneNumbers)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(end = 12.dp),
+
+                        initialPhoneNumber = phoneNumber
+                    )
+
+                    if (phoneNumbers.size > 1) {
+                        Box(
+                            modifier = Modifier
+                                .offset(y = (-12).dp)
+                                .align(Alignment.TopEnd)
+                                .size(24.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.error,
+                                    shape = CircleShape
+                                )
+                                .clickable {
+                                    phoneNumbers = phoneNumbers
+                                        .toMutableList()
+                                        .apply {
+                                            removeAt(index)
+                                        }
+                                    onPhoneNumbersChanged(phoneNumbers)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = "Remove phone number",
+                                tint = MaterialTheme.colorScheme.onError,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Add button
+            TextButton(
+                onClick = {
+                    phoneNumbers = phoneNumbers + ""
+                    onPhoneNumbersChanged(phoneNumbers)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                )
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
-                //todo: here comes
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add phone number",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Add Phone Number")
             }
         }
     }
