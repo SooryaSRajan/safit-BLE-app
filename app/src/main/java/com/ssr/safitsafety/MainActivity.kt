@@ -80,7 +80,7 @@ class MainActivity : ComponentActivity() {
 
         fun NavOptionsBuilder.popUpToTop(navController: NavController) {
             popUpTo(navController.currentBackStackEntry?.destination?.route ?: return) {
-                inclusive =  true
+                inclusive = true
             }
         }
     }
@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
 
     // Permissions required for location and Bluetooth functionality
     private val permissions = mutableListOf(
-        Manifest.permission.ACCESS_FINE_LOCATION // Required for all Bluetooth scanning below API 31
+        Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.SEND_SMS
     ).apply {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             add(Manifest.permission.BLUETOOTH_SCAN)
@@ -228,7 +228,11 @@ class MainActivity : ComponentActivity() {
                         navController.navigate(route = Screen.Scan.route) { popUpToTop(navController) }
                     }
                 } else {
-                    navController.navigate(route = Screen.Permissions.route) { popUpToTop(navController) }
+                    navController.navigate(route = Screen.Permissions.route) {
+                        popUpToTop(
+                            navController
+                        )
+                    }
                 }
             }
 
@@ -322,7 +326,7 @@ class MainActivity : ComponentActivity() {
                 // Show rationale dialog explaining why permissions are needed
                 AlertDialog.Builder(this)
                     .setTitle("Permissions Needed")
-                    .setMessage("This app requires location and Bluetooth permissions to scan and connect to devices.")
+                    .setMessage("This app requires location, Bluetooth and SMS permissions to scan and connect to devices.")
                     .setPositiveButton("OK") { _, _ ->
                         requestPermissionLauncher.launch(permissions)
                     }
