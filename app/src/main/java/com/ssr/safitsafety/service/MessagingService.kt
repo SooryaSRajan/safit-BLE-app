@@ -16,8 +16,9 @@ object MessagingService {
                 } else {
                     SmsManager.getDefault()
                 }
+                val sanitizedNumber = phoneNumber.replace(Regex("[^\\d+]"), "")
                 val messageParts = smsManager.divideMessage(message)
-                smsManager.sendMultipartTextMessage(phoneNumber, null, messageParts, null, null)
+                smsManager.sendMultipartTextMessage(sanitizedNumber, null, messageParts, null, null)
                 true
             } else {
                 false
