@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.ssr.safitsafety.MainActivity.Companion.popUpToTop
 import com.ssr.safitsafety.components.numberpicker.PhoneNumberInput
+import com.ssr.safitsafety.data.PhoneNumberEntry
 import com.ssr.safitsafety.data.UserData
 import com.ssr.safitsafety.data.UserDataStoreManager
 import com.ssr.safitsafety.navigation.Screen
@@ -192,10 +193,15 @@ fun UserDataScreen(navController: NavHostController) {
 @Composable
 fun MultiPhoneNumberInput(
     modifier: Modifier = Modifier,
-    initialPhoneNumbers: List<String> = listOf(""),
+    initialPhoneNumbers: List<String> = listOf(),
     onPhoneNumbersChanged: (List<String>) -> Unit
 ) {
-    var phoneNumbers by remember(initialPhoneNumbers) { mutableStateOf(initialPhoneNumbers) }
+
+    fun List<String>.toPhoneNumberEntries(): List<PhoneNumberEntry> {
+        return this.map { PhoneNumberEntry(number = it) }
+    }
+
+    var phoneNumbers by remember(initialPhoneNumbers) { mutableStateOf(initialPhoneNumbers.toPhoneNumberEntries()) }
     val scrollState = rememberScrollState()
 
     Card(
@@ -215,54 +221,52 @@ fun MultiPhoneNumberInput(
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
-
             )
+
             phoneNumbers.forEachIndexed { index, phoneNumber ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                ) {
-                    PhoneNumberInput(
-                        onPhoneNumberChanged = { newNumber ->
-                            phoneNumbers = phoneNumbers.toMutableList().apply {
-                                this[index] = newNumber
-                            }
-                            onPhoneNumbersChanged(phoneNumbers)
-                        },
+                key(phoneNumber.id) {  // Add key for proper recomposition
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(end = 12.dp),
-
-                        initialPhoneNumber = phoneNumber
-                    )
-
-                    if (phoneNumbers.size > 1) {
-                        Box(
+                            .padding(vertical = 8.dp)
+                    ) {
+                        PhoneNumberInput(
+                            onPhoneNumberChanged = { newNumber ->
+                                phoneNumbers = phoneNumbers.toMutableList().apply {
+                                    this[index] = this[index].copy(number = newNumber)
+                                }
+                                onPhoneNumbersChanged(phoneNumbers.map { it.number })
+                            },
                             modifier = Modifier
-                                .offset(y = (-12).dp)
-                                .align(Alignment.TopEnd)
-                                .size(24.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.error,
-                                    shape = CircleShape
+                                .fillMaxWidth()
+                                .padding(end = 12.dp),
+                            initialPhoneNumber = phoneNumber.number
+                        )
+
+                        if (phoneNumbers.size > 1) {
+                            Box(
+                                modifier = Modifier
+                                    .offset(y = (-12).dp)
+                                    .align(Alignment.TopEnd)
+                                    .size(24.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.error,
+                                        shape = CircleShape
+                                    )
+                                    .clickable {
+                                        phoneNumbers =
+                                            phoneNumbers.filterIndexed { i, _ -> i != index }
+                                        onPhoneNumbersChanged(phoneNumbers.map { it.number })
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = "Remove phone number",
+                                    tint = MaterialTheme.colorScheme.onError,
+                                    modifier = Modifier.size(16.dp)
                                 )
-                                .clickable {
-                                    phoneNumbers = phoneNumbers
-                                        .toMutableList()
-                                        .apply {
-                                            removeAt(index)
-                                        }
-                                    onPhoneNumbersChanged(phoneNumbers)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = "Remove phone number",
-                                tint = MaterialTheme.colorScheme.onError,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            }
                         }
                     }
                 }
@@ -271,8 +275,7 @@ fun MultiPhoneNumberInput(
             // Add button
             TextButton(
                 onClick = {
-                    phoneNumbers = phoneNumbers + ""
-                    onPhoneNumbersChanged(phoneNumbers)
+                    phoneNumbers = phoneNumbers + PhoneNumberEntry(number = "")
                 },
                 modifier = Modifier
                     .fillMaxWidth()
