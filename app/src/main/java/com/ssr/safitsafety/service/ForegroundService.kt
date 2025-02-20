@@ -1,6 +1,7 @@
 package com.ssr.safitsafety.service
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -20,14 +21,23 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.health.connect.datatypes.ExerciseRoute
+import android.location.Location
+import android.location.LocationRequest
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.renderscript.RenderScript
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.MutableLiveData
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.tasks.CancellationToken
+import com.google.android.gms.tasks.OnTokenCanceledListener
 import com.google.firebase.Firebase
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.database
@@ -53,6 +63,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
@@ -74,6 +85,8 @@ class ForegroundService : Service() {
     private var weightCharacteristic: BluetoothGattCharacteristic? = null
     private var ageCharacteristic: BluetoothGattCharacteristic? = null
     private val gattQueue = GattOperationQueue()
+
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     companion object {
         private val database =
@@ -269,6 +282,8 @@ class ForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
         serviceScope.launch {
             MacDataStoreManager.getMacAddress(this@ForegroundService).collect { macAddress ->
                 if (!connect(macAddress)) {
@@ -320,6 +335,53 @@ class ForegroundService : Service() {
             .setAutoCancel(false)
             .setOngoing(true)
             .build()
+    }
+
+    suspend fun getCurrentLocation(): String? {
+        return try {
+            val location: Location? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (ActivityCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    Toast.makeText(
+                        this,
+                        "Permission not given for location",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return null
+                }
+                fusedLocationClient.getCurrentLocation(
+                    LocationRequest.QUALITY_HIGH_ACCURACY,
+                    object :
+                        CancellationToken() {
+                        override fun onCanceledRequested(p0: OnTokenCanceledListener): CancellationToken {
+                            return this
+                        }
+
+                        override fun isCancellationRequested(): Boolean {
+                            return false
+                        }
+
+                    })
+                    .await()
+            } else {
+                fusedLocationClient.lastLocation.await()
+            }
+
+            location?.let {
+                val mapsUrl = "https://www.google.com/maps?q=${it.latitude},${it.longitude}"
+                Log.d("LocationService", "Maps URL: $mapsUrl")
+                mapsUrl
+            }
+        } catch (e: Exception) {
+            Log.e("LocationService", "Failed to fetch location", e)
+            null
+        }
     }
 
     private fun connect(address: String?): Boolean {
@@ -560,6 +622,7 @@ class ForegroundService : Service() {
                     Log.e("GattQueue", "Panic value received: $floatValue")
                     if (floatValue == 1.0F) {
                         createNotification("Panic detected, sending current location to all emergency contacts!")
+                        //TODO: obtain current location and SMS and send
                     }
                     heartRate.postValue(updatedHeartRate)
                     writeHeartRateToFirebase(updatedHeartRate)
