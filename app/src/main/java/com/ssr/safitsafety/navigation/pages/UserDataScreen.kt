@@ -2,10 +2,12 @@ package com.ssr.safitsafety.navigation.pages
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -14,15 +16,18 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.ssr.safitsafety.MainActivity.Companion.popUpToTop
@@ -38,8 +43,11 @@ import kotlinx.coroutines.launch
 fun UserDataScreen(navController: NavHostController) {
     var weight by remember { mutableStateOf<Int?>(null) }
     var age by remember { mutableStateOf<Int?>(null) }
+    val phoneNumbers = remember { mutableStateListOf<PhoneNumberEntry>() }
+
     var weightError by remember { mutableStateOf<String?>(null) }
     var ageError by remember { mutableStateOf<String?>(null) }
+    var phoneNumbersError by remember { mutableStateOf<String?>(null) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -48,12 +56,22 @@ fun UserDataScreen(navController: NavHostController) {
     val focusManager = LocalFocusManager.current
     val submitButtonFocusRequester = remember { FocusRequester() }
 
+    fun List<String>.toPhoneNumberEntries(): List<PhoneNumberEntry> {
+        return this.map { PhoneNumberEntry(number = it) }
+    }
+
+    fun List<PhoneNumberEntry>.toPhoneNumberString(): List<String> {
+        return this.map { it.number }
+    }
+
     // Load saved data
     LaunchedEffect(Unit) {
         UserDataStoreManager.getUserData(context).collect { userData ->
             if (userData != null) {
                 weight = userData.weight.takeIf { it > 0 }
                 age = userData.age.takeIf { it > 0 }
+                phoneNumbers.clear()
+                phoneNumbers.addAll(userData.phoneNumber.toPhoneNumberEntries())
             }
         }
     }
@@ -77,8 +95,11 @@ fun UserDataScreen(navController: NavHostController) {
                     onClick = {
                         weightError = validateWeight(weight)
                         ageError = validateAge(age)
+                        phoneNumbersError = validatePhoneNumbers(phoneNumbers.toPhoneNumberString())
 
-                        if (weightError == null && ageError == null && weight != null && age != null) {
+                        if (weightError == null && ageError == null && phoneNumbersError == null &&
+                            weight != null && age != null
+                        ) {
                             isLoading = true
                             scope.launch {
                                 try {
@@ -87,7 +108,7 @@ fun UserDataScreen(navController: NavHostController) {
                                         UserData(
                                             weight = weight!!,
                                             age = age!!,
-                                            phoneNumber = ArrayList()
+                                            phoneNumber = phoneNumbers.toPhoneNumberString()
                                         )
                                     )
                                     navController.navigate(Screen.Data.route) {
@@ -129,6 +150,7 @@ fun UserDataScreen(navController: NavHostController) {
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            phoneNumbersError?.let { ErrorBox(errorMessage = it) }
             OutlinedTextField(
                 value = weight?.toString() ?: "",
                 onValueChange = {
@@ -180,12 +202,7 @@ fun UserDataScreen(navController: NavHostController) {
                 enabled = !isLoading
             )
 
-            //TODO: replace with store fetch and save
-            MultiPhoneNumberInput(initialPhoneNumbers = listOf(
-                "+1-5555555555",
-                "+44-1234567890"
-            ),
-                onPhoneNumbersChanged = {})
+            MultiPhoneNumberInput(phoneNumbers = phoneNumbers, onPhoneNumbersChanged = {})
         }
     }
 }
@@ -193,15 +210,9 @@ fun UserDataScreen(navController: NavHostController) {
 @Composable
 fun MultiPhoneNumberInput(
     modifier: Modifier = Modifier,
-    initialPhoneNumbers: List<String> = listOf(),
+    phoneNumbers: SnapshotStateList<PhoneNumberEntry>,
     onPhoneNumbersChanged: (List<String>) -> Unit
 ) {
-
-    fun List<String>.toPhoneNumberEntries(): List<PhoneNumberEntry> {
-        return this.map { PhoneNumberEntry(number = it) }
-    }
-
-    var phoneNumbers by remember(initialPhoneNumbers) { mutableStateOf(initialPhoneNumbers.toPhoneNumberEntries()) }
     val scrollState = rememberScrollState()
 
     Card(
@@ -231,16 +242,14 @@ fun MultiPhoneNumberInput(
                             .padding(vertical = 8.dp)
                     ) {
                         PhoneNumberInput(
+                            initialPhoneNumber = phoneNumber.number,
                             onPhoneNumberChanged = { newNumber ->
-                                phoneNumbers = phoneNumbers.toMutableList().apply {
-                                    this[index] = this[index].copy(number = newNumber)
-                                }
+                                phoneNumbers[index] = phoneNumbers[index].copy(number = newNumber)
                                 onPhoneNumbersChanged(phoneNumbers.map { it.number })
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(end = 12.dp),
-                            initialPhoneNumber = phoneNumber.number
+                                .padding(end = 12.dp)
                         )
 
                         if (phoneNumbers.size > 1) {
@@ -254,8 +263,7 @@ fun MultiPhoneNumberInput(
                                         shape = CircleShape
                                     )
                                     .clickable {
-                                        phoneNumbers =
-                                            phoneNumbers.filterIndexed { i, _ -> i != index }
+                                        phoneNumbers.removeAt(index)
                                         onPhoneNumbersChanged(phoneNumbers.map { it.number })
                                     },
                                 contentAlignment = Alignment.Center
@@ -275,11 +283,12 @@ fun MultiPhoneNumberInput(
             // Add button
             TextButton(
                 onClick = {
-                    phoneNumbers = phoneNumbers + PhoneNumberEntry(number = "")
+                    phoneNumbers.add(PhoneNumberEntry(number = ""))
+                    onPhoneNumbersChanged(phoneNumbers.map { it.number })
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .padding(top = 8.dp)
             ) {
                 Icon(
                     Icons.Default.Add,
@@ -292,6 +301,26 @@ fun MultiPhoneNumberInput(
         }
     }
 }
+
+@Composable
+fun ErrorBox(errorMessage: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .background(color = Color(0xFFFFE5E5), shape = RoundedCornerShape(8.dp)) // Soft Red BG
+            .border(2.dp, Color.Red, RoundedCornerShape(8.dp)) // Red Border
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = errorMessage,
+            color = Color.Red,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
 
 private fun validateWeight(weight: Int?): String? {
     return when {
@@ -307,6 +336,15 @@ private fun validateAge(age: Int?): String? {
         age == null -> "Age is required"
         age <= 0 -> "Age must be greater than 0"
         age > 150 -> "Please enter a realistic age"
+        else -> null
+    }
+}
+
+fun validatePhoneNumbers(phoneNumbers: List<String>): String? {
+    return when {
+        phoneNumbers.isEmpty() || phoneNumbers.all { it.isBlank() } -> "At least one phone number is required"
+        phoneNumbers.any { it.isBlank() } -> "Phone numbers cannot be empty"
+        phoneNumbers.any { it.length < 10 } -> "Invalid phone number(s)"
         else -> null
     }
 }
