@@ -1,7 +1,6 @@
 package com.ssr.safitsafety.service
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -21,14 +20,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
-import android.health.connect.datatypes.ExerciseRoute
 import android.location.Location
 import android.location.LocationRequest
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.renderscript.RenderScript
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
@@ -60,6 +57,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -88,6 +86,8 @@ class ForegroundService : Service() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
+    private lateinit var emergencyContacts: List<String>
+
     companion object {
         private val database =
             Firebase.database("https://safit33-6b519-default-rtdb.asia-southeast1.firebasedatabase.app")
@@ -113,11 +113,10 @@ class ForegroundService : Service() {
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun observeUserData() {
         userDataCollectorJob = CoroutineScope(Dispatchers.IO).launch {
             UserDataStoreManager.getUserData(this@ForegroundService)
-                .collect { userData ->
+                .collectLatest { userData ->
                     userData?.let {
                         Log.i(
                             TAG,
@@ -131,6 +130,7 @@ class ForegroundService : Service() {
                         ) {
                             writeWeight(userData.weight)
                             writeAge(userData.age)
+                            emergencyContacts = userData.phoneNumber
                         }
                     }
                 }
@@ -300,6 +300,7 @@ class ForegroundService : Service() {
                 }
             }
         }
+
         return START_STICKY
     }
 
@@ -337,7 +338,19 @@ class ForegroundService : Service() {
             .build()
     }
 
-    suspend fun getCurrentLocation(): String? {
+    private suspend fun sendInfoToEmergencyContacts() {
+        //TODO: Read from DB > numbers
+        //TODO: get current location
+        //TODO: send message one by one
+        val currentLocation = getCurrentLocation();
+        emergencyContacts.forEach { contact ->
+            {
+
+            }
+        }
+    }
+
+    private suspend fun getCurrentLocation(): String? {
         return try {
             val location: Location? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (ActivityCompat.checkSelfPermission(

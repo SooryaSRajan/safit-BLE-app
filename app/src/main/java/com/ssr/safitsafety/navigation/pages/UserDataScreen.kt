@@ -41,10 +41,12 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserDataScreen(navController: NavHostController) {
+    var name by remember { mutableStateOf<String?>("") }
     var weight by remember { mutableStateOf<Int?>(null) }
     var age by remember { mutableStateOf<Int?>(null) }
     val phoneNumbers = remember { mutableStateListOf<PhoneNumberEntry>() }
 
+    var nameError by remember { mutableStateOf<String?>(null) }
     var weightError by remember { mutableStateOf<String?>(null) }
     var ageError by remember { mutableStateOf<String?>(null) }
     var phoneNumbersError by remember { mutableStateOf<String?>(null) }
@@ -68,6 +70,7 @@ fun UserDataScreen(navController: NavHostController) {
     LaunchedEffect(Unit) {
         UserDataStoreManager.getUserData(context).collect { userData ->
             if (userData != null) {
+                name = userData.name.trim()
                 weight = userData.weight.takeIf { it > 0 }
                 age = userData.age.takeIf { it > 0 }
                 phoneNumbers.clear()
@@ -93,12 +96,19 @@ fun UserDataScreen(navController: NavHostController) {
             ) {
                 Button(
                     onClick = {
+                        nameError = validateName(name)
                         weightError = validateWeight(weight)
                         ageError = validateAge(age)
                         phoneNumbersError = validatePhoneNumbers(phoneNumbers.toPhoneNumberString())
 
-                        if (weightError == null && ageError == null && phoneNumbersError == null &&
-                            weight != null && age != null
+                        if (weightError == null
+                            && ageError == null
+                            && phoneNumbersError == null
+                            && nameError == null
+                            && name != null
+                            && weight != null
+                            && age != null
+                            && phoneNumbers.isNotEmpty()
                         ) {
                             isLoading = true
                             scope.launch {
@@ -106,6 +116,7 @@ fun UserDataScreen(navController: NavHostController) {
                                     UserDataStoreManager.saveUserData(
                                         context,
                                         UserData(
+                                            name = name!!,
                                             weight = weight!!,
                                             age = age!!,
                                             phoneNumber = phoneNumbers.toPhoneNumberString()
@@ -151,6 +162,30 @@ fun UserDataScreen(navController: NavHostController) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             phoneNumbersError?.let { ErrorBox(errorMessage = it) }
+            OutlinedTextField(
+                value = name ?: "",
+                onValueChange = {
+                    name = it.trim()
+                    nameError = null
+                },
+                label = { Text("User Name") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                ),
+                isError = nameError != null,
+                supportingText = nameError?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                ),
+                enabled = !isLoading
+            )
+
             OutlinedTextField(
                 value = weight?.toString() ?: "",
                 onValueChange = {
@@ -321,6 +356,13 @@ fun ErrorBox(errorMessage: String, modifier: Modifier = Modifier) {
     }
 }
 
+private fun validateName(name: String?): String? {
+    return when {
+        name.isNullOrEmpty() -> "Name is required"
+        name.length < 2 -> "Name must at least be 2 characters long"
+        else -> null
+    }
+}
 
 private fun validateWeight(weight: Int?): String? {
     return when {

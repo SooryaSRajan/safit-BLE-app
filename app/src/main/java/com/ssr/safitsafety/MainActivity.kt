@@ -63,6 +63,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val MAC_PREF_KEY = "SAVED_MAC"
+        const val USER_NAME_PREF_KEY = "SAVED_USER_NAME"
         const val USER_WEIGHT_PREF_KEY = "SAVED_USER_WEIGHT"
         const val USER_AGE_PREF_KEY = "SAVED_USER_AGE"
         const val EMERGENCY_CONTACTS_PREF_KEY = "EMERGENCY_CONTACTS_PREF_KEY"
@@ -212,8 +213,9 @@ class MainActivity : ComponentActivity() {
                 checkPermissions()
             }
 
+            //TODO: Reset back to default route and start service logic. Remove ! from both codes below
             if (arePermissionsAllowed.value) {
-                if (savedMac.value.isNotEmpty()) {
+                if (!savedMac.value.isNotEmpty()) {
                     Intent(this, ForegroundService::class.java).also { intent ->
                         startForegroundService(intent)
                     }

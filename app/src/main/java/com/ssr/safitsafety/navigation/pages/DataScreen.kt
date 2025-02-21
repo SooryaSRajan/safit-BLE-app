@@ -76,7 +76,7 @@ fun DataScreen(navController: NavHostController) {
 
     LaunchedEffect(Unit) {
         UserDataStoreManager.getUserData(context).collect { userData ->
-            if (userData == null || userData.weight == 0 || userData.age == 0) {
+            if (userData == null || userData.weight == 0 || userData.age == 0 || userData.name.isEmpty() || userData.phoneNumber.isEmpty()) {
                 navController.navigate(route = Screen.UserData.route) {
                     popUpToTop(navController)
                 }
@@ -258,7 +258,7 @@ private fun ReadingCard(
 private fun ErrorCard(
     message: String,
 ) {
-    androidx.compose.material3.Card(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
