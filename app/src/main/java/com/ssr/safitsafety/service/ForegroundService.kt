@@ -85,8 +85,14 @@ class ForegroundService : Service() {
     private val gattQueue = GattOperationQueue()
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-
     private lateinit var emergencyContacts: List<String>
+    private lateinit var name: String
+    private val emergencyMessageTemplate = { name: String, url: String ->
+        "Hi, this is an emergency alert. $name is in distress and was last located at: $url. Please check on them immediately."
+    }
+    private val emergencyMessageTemplateWithoutUrl = { name: String ->
+        "Hi, this is an emergency alert. $name is in distress. Please check on them immediately."
+    }
 
     companion object {
         private val database =
@@ -131,6 +137,7 @@ class ForegroundService : Service() {
                             writeWeight(userData.weight)
                             writeAge(userData.age)
                             emergencyContacts = userData.phoneNumber
+                            name = userData.name
                         }
                     }
                 }
@@ -339,13 +346,15 @@ class ForegroundService : Service() {
     }
 
     private suspend fun sendInfoToEmergencyContacts() {
-        //TODO: Read from DB > numbers
-        //TODO: get current location
-        //TODO: send message one by one
-        val currentLocation = getCurrentLocation();
+        val currentLocation = getCurrentLocation()
+        val emergencyMessage = if (currentLocation != null) {
+            emergencyMessageTemplate(name, currentLocation)
+        } else {
+            emergencyMessageTemplateWithoutUrl(name)
+        }
         emergencyContacts.forEach { contact ->
-            {
-
+            run {
+                MessagingService.sendSMS(this@ForegroundService, contact, emergencyMessage)
             }
         }
     }
@@ -635,7 +644,9 @@ class ForegroundService : Service() {
                     Log.e("GattQueue", "Panic value received: $floatValue")
                     if (floatValue == 1.0F) {
                         createNotification("Panic detected, sending current location to all emergency contacts!")
-                        //TODO: obtain current location and SMS and send
+                        serviceScope.launch {
+                            sendInfoToEmergencyContacts()
+                        }
                     }
                     heartRate.postValue(updatedHeartRate)
                     writeHeartRateToFirebase(updatedHeartRate)

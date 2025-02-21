@@ -213,9 +213,8 @@ class MainActivity : ComponentActivity() {
                 checkPermissions()
             }
 
-            //TODO: Reset back to default route and start service logic. Remove ! from both codes below
             if (arePermissionsAllowed.value) {
-                if (!savedMac.value.isNotEmpty()) {
+                if (savedMac.value.isNotEmpty()) {
                     Intent(this, ForegroundService::class.java).also { intent ->
                         startForegroundService(intent)
                     }
@@ -224,7 +223,7 @@ class MainActivity : ComponentActivity() {
 
             if (isNavHostInitialized.value) {
                 if (arePermissionsAllowed.value) {
-                    if (!savedMac.value.isNotEmpty()) {
+                    if (savedMac.value.isNotEmpty()) {
                         navController.navigate(route = Screen.Data.route) { popUpToTop(navController) }
                     } else {
                         navController.navigate(route = Screen.Scan.route) { popUpToTop(navController) }
